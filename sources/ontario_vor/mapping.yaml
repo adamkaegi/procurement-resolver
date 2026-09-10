@@ -1,0 +1,27 @@
+source_id: ontario_vor
+mapping_version: phase-1-manual
+mappings:
+  - canonical: ocid
+    source_field: Vendor of Record (VOR) Number
+    transform: direct
+  - canonical: id
+    source_field: Vendor of Record (VOR) Number
+    transform: direct
+  - canonical: date
+    source_field: Estimated Contract Start Date
+    transform: parse_date_mmddyyyy
+  - canonical: buyer.name
+    source_field: Buying Organization(s)
+    transform: direct
+  - canonical: awards[].suppliers[].name
+    source_field: Vendor of Record (VOR) Name
+    transform: direct
+  - canonical: awards[].description
+    source_field: Vendor of Record (VOR) Name
+    transform: direct
+  - canonical: contracts[].period.startDate
+    source_field: Estimated Contract Start Date
+    transform: parse_date_mmddyyyy
+  - canonical: contracts[].period.endDate
+    disposition: unmapped
+    transform: none

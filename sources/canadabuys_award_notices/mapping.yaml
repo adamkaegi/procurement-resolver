@@ -1,0 +1,36 @@
+source_id: canadabuys_award_notices
+mapping_version: phase-1-manual
+mappings:
+  - canonical: ocid
+    source_field: solicitationNumber-numeroSollicitation
+    transform: direct_or_reference
+  - canonical: id
+    source_field: contractNumber-numeroContrat
+    transform: direct_or_reference
+  - canonical: date
+    source_field: contractAwardDate-dateAttributionContrat
+    transform: parse_date_or_publication_date
+  - canonical: buyer.name
+    source_field: contractingEntityName-nomEntitContractante-eng
+    transform: direct
+  - canonical: awards[].suppliers[].name
+    source_field: supplierLegalName-nomLegalFournisseur-eng
+    transform: direct
+  - canonical: awards[].value.amount
+    source_field: contractAmount-montantContrat
+    transform: parse_currency
+  - canonical: awards[].value.currency
+    source_field: contractCurrency-contratMonnaie
+    transform: default_cad
+  - canonical: awards[].description
+    source_field: awardDescription-descriptionAttribution-eng
+    transform: direct_or_title
+  - canonical: awards[].items[].classification.id
+    source_fields: [unspsc-unspsc, gsin-nibs]
+    transform: first_present
+  - canonical: contracts[].period.startDate
+    source_field: contractStartDate-contratDateDebut
+    transform: parse_date
+  - canonical: contracts[].period.endDate
+    source_field: contractEndDate-dateFinContrat
+    transform: parse_date

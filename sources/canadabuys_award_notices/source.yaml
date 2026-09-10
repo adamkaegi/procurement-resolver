@@ -1,0 +1,8 @@
+source_id: canadabuys_award_notices
+name: CanadaBuys award notices
+url: https://canadabuys.canada.ca/opendata/pub/awardNoticeComplete-avisAttributionComplet.csv
+licence: Open Government Licence - Canada
+jurisdiction: federal
+value_threshold: 10000
+record_cap: 5000
+notes: Official CanadaBuys complete award-notice CSV; source records are capped before transformation.

@@ -1,0 +1,8 @@
+source_id: ontario_vor
+name: Vendor of Record Program Three Year Outlook
+url: https://www.doingbusiness.mgs.gov.on.ca/mbs/psb/psb.nsf/Attachments/3-year-outlook_2018-2020_EN/$FILE/3-year-outlook_2018-2020_EN.CSV
+licence: Open Government Licence - Ontario
+jurisdiction: on
+value_threshold: 25000
+record_cap: 5000
+notes: Official Ontario catalogue resource; outlook records describe planned VOR opportunities and do not publish award values.

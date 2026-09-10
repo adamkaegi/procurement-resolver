@@ -1,0 +1,33 @@
+source_id: federal_contracts
+mapping_version: phase-1-manual
+mappings:
+  - canonical: ocid
+    source_field: procurement_id
+    transform: direct
+  - canonical: id
+    source_field: reference_number
+    transform: direct
+  - canonical: date
+    source_field: contract_date
+    transform: parse_date
+  - canonical: buyer.name
+    source_field: buyer_name
+    transform: direct
+  - canonical: awards[].suppliers[].name
+    source_field: vendor_name
+    transform: direct
+  - canonical: awards[].value.amount
+    source_field: contract_value
+    transform: parse_currency
+  - canonical: awards[].description
+    source_field: description_en
+    transform: direct
+  - canonical: awards[].items[].classification.id
+    source_field: commodity_code
+    transform: direct
+  - canonical: contracts[].period.startDate
+    source_field: contract_period_start
+    transform: parse_date
+  - canonical: contracts[].period.endDate
+    source_field: delivery_date
+    transform: parse_date

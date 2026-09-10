@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/procurement-resolver/ocds-subset.json",
+  "title": "Procurement Resolver OCDS 1.1 subset",
+  "type": "object",
+  "required": ["ocid", "id", "date", "initiationType", "tag", "buyer", "awards"],
+  "properties": {
+    "ocid": {"type": "string", "minLength": 1},
+    "id": {"type": "string", "minLength": 1},
+    "date": {"type": "string", "format": "date-time"},
+    "initiationType": {"const": "tender"},
+    "tag": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "buyer": {"$ref": "#/$defs/buyer"},
+    "awards": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/award"}},
+    "contracts": {"type": "array", "items": {"$ref": "#/$defs/contract"}}
+  },
+  "$defs": {
+    "buyer": {
+      "type": "object", "required": ["name", "id"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "id": {"type": "string", "minLength": 1},
+        "jurisdiction": {"enum": ["federal", "on", "ottawa"]}
+      }, "additionalProperties": true
+    },
+    "award": {
+      "type": "object", "required": ["id", "date", "value", "suppliers"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "date": {"type": "string", "format": "date-time"},
+        "value": {
+          "type": "object", "required": ["amount", "currency"],
+          "properties": {
+            "amount": {"type": "number", "minimum": 0},
+            "currency": {"type": "string", "pattern": "^[A-Z]{3}$"}
+          }, "additionalProperties": true
+        },
+        "suppliers": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/supplier"}},
+        "description": {"type": ["string", "null"]},
+        "items": {"type": "array", "items": {"$ref": "#/$defs/item"}},
+        "contractPeriod": {"$ref": "#/$defs/period"}
+      }, "additionalProperties": true
+    },
+    "supplier": {
+      "type": "object", "required": ["name"],
+      "properties": {"name": {"type": "string", "minLength": 1}, "id": {"type": ["string", "null"]}},
+      "additionalProperties": true
+    },
+    "item": {
+      "type": "object", "required": ["classification"],
+      "properties": {
+        "classification": {
+          "type": "object", "required": ["scheme", "id"],
+          "properties": {"scheme": {"type": "string", "minLength": 1}, "id": {"type": "string", "minLength": 1}},
+          "additionalProperties": true
+        }
+      }, "additionalProperties": true
+    },
+    "period": {
+      "type": "object",
+      "properties": {"startDate": {"type": "string", "format": "date-time"}, "endDate": {"type": "string", "format": "date-time"}},
+      "additionalProperties": true
+    },
+    "contract": {
+      "type": "object",
+      "properties": {"period": {"$ref": "#/$defs/period"}, "awardID": {"type": "string"}},
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}
