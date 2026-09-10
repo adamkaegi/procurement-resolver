@@ -1,0 +1,108 @@
+source_id: ontario_vor
+generated_at: '2026-09-10T04:21:17.676552+00:00'
+model: offline-deterministic-scaffold
+mappings:
+- canonical: ocid
+  disposition: mapped
+  transform: direct_or_reference
+  confidence: high
+  reasoning: Matched published field name for ocid.
+  source_field: Vendor of Record (VOR) Number
+- canonical: id
+  disposition: mapped
+  transform: direct_or_reference
+  confidence: high
+  reasoning: Matched published field name for id.
+  source_field: Vendor of Record (VOR) Number
+- canonical: date
+  disposition: mapped
+  transform: parse_date_or_publication_date
+  confidence: high
+  reasoning: Matched published field name for date.
+  source_field: Estimated Contract Start Date
+- canonical: initiationType
+  disposition: unmapped
+  confidence: high
+  reasoning: No unambiguous source field was found; abstention is preferred to guessing.
+  transform: unmapped
+- canonical: tag
+  disposition: unmapped
+  confidence: high
+  reasoning: No unambiguous source field was found; abstention is preferred to guessing.
+  transform: unmapped
+- canonical: buyer.name
+  disposition: mapped
+  transform: direct
+  confidence: high
+  reasoning: Matched published field name for buyer.name.
+  source_field: Buying Organization(s)
+- canonical: buyer.id
+  disposition: unmapped
+  confidence: high
+  reasoning: No unambiguous source field was found; abstention is preferred to guessing.
+  transform: unmapped
+- canonical: buyer.jurisdiction
+  disposition: unmapped
+  confidence: high
+  reasoning: No unambiguous source field was found; abstention is preferred to guessing.
+  transform: unmapped
+- canonical: awards[].id
+  disposition: mapped
+  transform: direct_or_reference
+  confidence: high
+  reasoning: Matched published field name for awards[].id.
+  source_field: Vendor of Record (VOR) Number
+- canonical: awards[].date
+  disposition: mapped
+  transform: parse_date
+  confidence: high
+  reasoning: Matched published field name for awards[].date.
+  source_field: Estimated Contract Start Date
+- canonical: awards[].value.amount
+  disposition: unmapped
+  confidence: high
+  reasoning: No unambiguous source field was found; abstention is preferred to guessing.
+  transform: unmapped
+- canonical: awards[].value.currency
+  disposition: unmapped
+  confidence: high
+  reasoning: No unambiguous source field was found; abstention is preferred to guessing.
+  transform: unmapped
+- canonical: awards[].suppliers[].name
+  disposition: mapped
+  transform: direct_or_operating_name
+  confidence: high
+  reasoning: Matched published field name for awards[].suppliers[].name.
+  source_field: Vendor of Record (VOR) Name
+- canonical: awards[].suppliers[].id
+  disposition: unmapped
+  confidence: high
+  reasoning: No unambiguous source field was found; abstention is preferred to guessing.
+  transform: unmapped
+- canonical: awards[].items[].classification.scheme
+  disposition: unmapped
+  confidence: high
+  reasoning: No unambiguous source field was found; abstention is preferred to guessing.
+  transform: unmapped
+- canonical: awards[].items[].classification.id
+  disposition: unmapped
+  confidence: high
+  reasoning: No unambiguous source field was found; abstention is preferred to guessing.
+  transform: unmapped
+- canonical: awards[].description
+  disposition: mapped
+  transform: direct_or_title
+  confidence: high
+  reasoning: Matched published field name for awards[].description.
+  source_field: Vendor of Record (VOR) Name
+- canonical: contracts[].period.startDate
+  disposition: mapped
+  transform: parse_date
+  confidence: high
+  reasoning: Matched published field name for contracts[].period.startDate.
+  source_field: Estimated Contract Start Date
+- canonical: contracts[].period.endDate
+  disposition: unmapped
+  confidence: high
+  reasoning: No unambiguous source field was found; abstention is preferred to guessing.
+  transform: unmapped

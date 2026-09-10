@@ -1,0 +1,2 @@
+PROVISIONAL
+{"source_id": "federal_contracts", "model": "offline-deterministic-scaffold", "input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0, "latency_ms": 6324.955, "retries": 0, "validation_outcome": "passed", "errors": []}

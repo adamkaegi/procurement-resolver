@@ -1,0 +1,111 @@
+source_id: federal_contracts
+generated_at: '2026-09-10T04:21:15.852525+00:00'
+model: offline-deterministic-scaffold
+mappings:
+- canonical: ocid
+  disposition: mapped
+  transform: direct_or_reference
+  confidence: high
+  reasoning: Matched published field name for ocid.
+  source_field: procurement_id
+- canonical: id
+  disposition: mapped
+  transform: direct_or_reference
+  confidence: high
+  reasoning: Matched published field name for id.
+  source_field: reference_number
+- canonical: date
+  disposition: mapped
+  transform: parse_date_or_publication_date
+  confidence: high
+  reasoning: Matched published field name for date.
+  source_field: contract_date
+- canonical: initiationType
+  disposition: unmapped
+  confidence: high
+  reasoning: No unambiguous source field was found; abstention is preferred to guessing.
+  transform: unmapped
+- canonical: tag
+  disposition: unmapped
+  confidence: high
+  reasoning: No unambiguous source field was found; abstention is preferred to guessing.
+  transform: unmapped
+- canonical: buyer.name
+  disposition: mapped
+  transform: direct
+  confidence: high
+  reasoning: Matched published field name for buyer.name.
+  source_field: buyer_name
+- canonical: buyer.id
+  disposition: unmapped
+  confidence: high
+  reasoning: No unambiguous source field was found; abstention is preferred to guessing.
+  transform: unmapped
+- canonical: buyer.jurisdiction
+  disposition: unmapped
+  confidence: high
+  reasoning: No unambiguous source field was found; abstention is preferred to guessing.
+  transform: unmapped
+- canonical: awards[].id
+  disposition: mapped
+  transform: direct_or_reference
+  confidence: high
+  reasoning: Matched published field name for awards[].id.
+  source_field: reference_number
+- canonical: awards[].date
+  disposition: mapped
+  transform: parse_date
+  confidence: high
+  reasoning: Matched published field name for awards[].date.
+  source_field: contract_date
+- canonical: awards[].value.amount
+  disposition: mapped
+  transform: parse_nonnegative_currency_with_amount_fallback
+  confidence: high
+  reasoning: Matched published field name for awards[].value.amount.
+  source_field: contract_value
+- canonical: awards[].value.currency
+  disposition: unmapped
+  confidence: high
+  reasoning: No unambiguous source field was found; abstention is preferred to guessing.
+  transform: unmapped
+- canonical: awards[].suppliers[].name
+  disposition: mapped
+  transform: direct_or_operating_name
+  confidence: high
+  reasoning: Matched published field name for awards[].suppliers[].name.
+  source_field: vendor_name
+- canonical: awards[].suppliers[].id
+  disposition: unmapped
+  confidence: high
+  reasoning: No unambiguous source field was found; abstention is preferred to guessing.
+  transform: unmapped
+- canonical: awards[].items[].classification.scheme
+  disposition: unmapped
+  confidence: high
+  reasoning: No unambiguous source field was found; abstention is preferred to guessing.
+  transform: unmapped
+- canonical: awards[].items[].classification.id
+  disposition: mapped
+  transform: first_present
+  confidence: high
+  reasoning: Matched published field name for awards[].items[].classification.id.
+  source_field: commodity_code
+- canonical: awards[].description
+  disposition: mapped
+  transform: direct_or_title
+  confidence: high
+  reasoning: Matched published field name for awards[].description.
+  source_field: description_en
+- canonical: contracts[].period.startDate
+  disposition: mapped
+  transform: parse_date
+  confidence: high
+  reasoning: Matched published field name for contracts[].period.startDate.
+  source_field: contract_period_start
+- canonical: contracts[].period.endDate
+  disposition: mapped
+  transform: parse_date
+  confidence: high
+  reasoning: Matched published field name for contracts[].period.endDate.
+  source_field: delivery_date
