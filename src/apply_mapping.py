@@ -38,11 +38,13 @@ def _release(row: dict[str, str], config: dict[str, Any], raw_ref: str) -> dict[
         start, end = _value(row, "contractStartDate-contratDateDebut"), _value(row, "contractEndDate-dateFinContrat")
     else:
         ocid, release_id = _value(row, "Vendor of Record (VOR) Number"), _value(row, "Vendor of Record (VOR) Number")
-        date = _value(row, "Estimated Contract Start Date")
-        if parse_date(date) is None:
-            date = _value(row, "Estimated Electronic Tendering Posting Date")
-        buyer_name, vendor, amount, description, classification = _value(row, "Buying Organization(s)"), _value(row, "Vendor of Record (VOR) Name"), 0.0, _value(row, "Vendor of Record (VOR) Name"), "VOR"
-        start, end = _value(row, "Estimated Contract Start Date"), ""
+        date = _value(row, "Start Date")
+        buyer_name = config.get("buyer_name", "Ontario Government")
+        vendor = _value(row, "Qualified Vendor")
+        amount = 0.0
+        description = _value(row, "Vendor of Record (VOR) Name")
+        classification = "VOR"
+        start, end = _value(row, "Start Date"), _value(row, "End Date")
     release = {
         "ocid": ocid,
         "id": release_id,
@@ -75,8 +77,13 @@ def _release(row: dict[str, str], config: dict[str, Any], raw_ref: str) -> dict[
 def ingest_csv(path: Path, config_path: Path, limit: int = 5000) -> list[dict[str, Any]]:
     config = yaml.safe_load(config_path.read_text())
     with path.open(newline="", encoding=config.get("encoding", "utf-8-sig")) as stream:
+        for _ in range(config.get("skip_rows", 0)):
+            next(stream, None)
+        reader = csv.DictReader(stream)
+        reader.fieldnames = [field.strip() for field in (reader.fieldnames or [])]
         rows = [
-            row for row in csv.DictReader(stream)
+            {key.strip(): value for key, value in row.items() if key is not None}
+            for row in reader
             if any(value.strip() for value in row.values() if value)
             and (not config.get("required_source_field") or _value(row, config["required_source_field"]))
         ]

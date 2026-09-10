@@ -1,8 +1,9 @@
 source_id: ontario_vor
 jurisdiction: "on"
 encoding: cp1252
-required_source_field: Vendor of Record (VOR) Number
-mapping_version: phase-1-manual
+skip_rows: 2
+buyer_name: Ontario Government
+mapping_version: phase-1-active-vor
 mappings:
   - canonical: ocid
     source_field: Vendor of Record (VOR) Number
@@ -11,20 +12,26 @@ mappings:
     source_field: Vendor of Record (VOR) Number
     transform: direct
   - canonical: date
-    source_fields: [Estimated Contract Start Date, Estimated Electronic Tendering Posting Date]
-    transform: parse_date_mmddyyyy_or_posting_date
+    source_field: Start Date
+    transform: parse_date
   - canonical: buyer.name
-    source_field: Buying Organization(s)
-    transform: direct
+    source_field: source_config
+    transform: constant_ontario_government
   - canonical: awards[].suppliers[].name
-    source_field: Vendor of Record (VOR) Name
+    source_field: Qualified Vendor
     transform: direct
   - canonical: awards[].description
     source_field: Vendor of Record (VOR) Name
     transform: direct
-  - canonical: contracts[].period.startDate
-    source_field: Estimated Contract Start Date
-    transform: parse_date_mmddyyyy
-  - canonical: contracts[].period.endDate
+  - canonical: awards[].value.amount
     disposition: unmapped
     transform: none
+  - canonical: awards[].value.currency
+    disposition: unmapped
+    transform: none
+  - canonical: contracts[].period.startDate
+    source_field: Start Date
+    transform: parse_date
+  - canonical: contracts[].period.endDate
+    source_field: End Date
+    transform: parse_date

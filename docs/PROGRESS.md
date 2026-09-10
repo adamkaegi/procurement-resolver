@@ -49,3 +49,11 @@
 - Decisions: the raw filename with the incorrect 2022 end year is not renamed; the report text supplies the 2023 period. Currency parsing accepts both `$ amount` and `amount $` layouts. Duplicate contract IDs retain the richest record and all raw references.
 - Uncertainty: the parser extracts text-based tables reliably enough for the current acceptance check, but descriptions and non-competitive rationales can be absent, and image-only documents need a separate extraction method.
 - Human verification before gold sets: review the ten-record spot check and decide whether the image-only Transit report belongs in the held-out extraction scope.
+
+## Phase 1 resumed: active Ontario VOR export
+
+- Acceptance test: verified the official active VOR page and CSV export, archived the export, applied the updated manual mapping, validated the canonical records, and rebuilt the local DuckDB releases table.
+- Result: passed with 1,822 active Ontario VOR arrangements, replacing the 39-row 2018-2020 planning outlook.
+- Decisions: the active export's two-line preamble is skipped; padded headers are normalized; the Windows-1252 encoding is declared; qualified vendor is used for supplier name; arrangement dates populate contract period; award value remains zero because no transaction value is published.
+- Uncertainty: active VOR arrangements are not individual awards and may represent standing agreements or volume-license arrangements; cross-source spend comparisons must not treat the zero amount as observed spend.
+- Human verification before gold sets: decide whether the active arrangement registry belongs in the Ontario gold mapping scope or whether a separate Ontario award-notice source is needed.
