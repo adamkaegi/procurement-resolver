@@ -1,0 +1,14 @@
+source_id: ottawa_contracts_awarded
+name: City of Ottawa contracts awarded under delegated authority
+url: https://ottawa.ca/en/business/procurement/contracts-awarded
+document_host: https://pub-ottawa.escribemeetings.com/
+licence: City publication; personal-project download, redistribution not assumed
+jurisdiction: ottawa
+value_threshold: 25000
+record_cap: 5000
+format: PDF committee and delegated-authority reports
+notes: >-
+  Reports are text-based PDFs with repeated tables. The file named
+  "Contracts awarded for the period January 1, 2023 to June 30, 2022.pdf"
+  contains a report for January 1, 2023 to June 30, 2023; preserve the raw
+  filename and derive the period from the document text.

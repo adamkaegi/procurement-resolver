@@ -41,3 +41,11 @@
 - Decisions: entity links preserve verbatim source vendor names; exact-normalized clusters use `vendor_to_vendor` mode; no registry identifiers or Ottawa source records were fabricated after Phase 4 was blocked.
 - Uncertainty: the provisional pairs are model-generated and the warehouse contains only federal and Ontario source records, so no production resolution claim is supported.
 - Human verification before the next phase: replace the provisional pair path with `evals/gold/resolution/pairs.csv` after hand labelling, then review entity links and coverage gaps before building agent tools.
+
+## Phase 4 resumed
+
+- Acceptance test: downloaded Ottawa contracts-awarded PDFs were parsed into canonical records, deduplicated by contract ID across overlapping Transit and period reports, validated against the OCDS subset, and checked against ten representative source rows.
+- Result: passed for the text-extractable report records. One Transit PDF is image-only and produced no deterministic rows; it remains an explicit extraction gap for a later OCR/model-assisted pass.
+- Decisions: the raw filename with the incorrect 2022 end year is not renamed; the report text supplies the 2023 period. Currency parsing accepts both `$ amount` and `amount $` layouts. Duplicate contract IDs retain the richest record and all raw references.
+- Uncertainty: the parser extracts text-based tables reliably enough for the current acceptance check, but descriptions and non-competitive rationales can be absent, and image-only documents need a separate extraction method.
+- Human verification before gold sets: review the ten-record spot check and decide whether the image-only Transit report belongs in the held-out extraction scope.

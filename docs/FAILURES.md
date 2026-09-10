@@ -15,3 +15,7 @@ failure modes and root causes, not measured production metrics.
 10. A government buyer name can appear in a vendor field after data-entry error; buyer context is required to avoid a false match.
 11. Ontario-incorporated firms absent from the federal registry cannot be rejected merely because no registry candidate exists.
 12. Empty, footer, and note rows are not vendors; source-row filtering must happen before normalization.
+13. Ottawa Transit reports overlap the broader delegation-of-authority period reports; the same contract ID can occur in multiple PDFs and requires deterministic deduplication.
+14. One Ottawa PDF is image-only and produces no text through the deterministic parser; OCR or a model-assisted extraction path is required for that document.
+15. Ottawa report tables place the currency symbol before or after the amount depending on the report period; amount parsing must support both layouts.
+16. Some Ottawa records have no non-competitive rationale or description; those fields must remain nullable rather than being inferred.

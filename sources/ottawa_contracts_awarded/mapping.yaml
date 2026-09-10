@@ -1,0 +1,45 @@
+source_id: ottawa_contracts_awarded
+mapping_version: phase-4-manual
+mappings:
+  - canonical: ocid
+    source_field: Contract
+    transform: stable_source_contract_id
+  - canonical: id
+    source_field: Item#
+    transform: stable_source_item_id
+  - canonical: date
+    source_field: report_period_end
+    transform: parse_report_period_date
+  - canonical: buyer.name
+    source_field: Department
+    transform: direct
+  - canonical: buyer.jurisdiction
+    source_field: source_config
+    transform: constant_ottawa
+  - canonical: awards[].id
+    source_field: Contract
+    transform: stable_source_contract_id
+  - canonical: awards[].date
+    source_field: report_period_end
+    transform: parse_report_period_date
+  - canonical: awards[].value.amount
+    source_field: Amount
+    transform: parse_currency
+  - canonical: awards[].value.currency
+    source_field: source_config
+    transform: constant_cad
+  - canonical: awards[].suppliers[].name
+    source_field: Vendor
+    transform: direct
+  - canonical: awards[].description
+    source_field: Description
+    transform: direct
+  - canonical: contracts[].period.startDate
+    source_field: report_period_start
+    transform: parse_report_period_date
+  - canonical: contracts[].period.endDate
+    source_field: report_period_end
+    transform: parse_report_period_date
+  - canonical: _provenance.extraction_conf
+    source_field: parser_outcome
+    transform: confidence_from_parse_outcome
