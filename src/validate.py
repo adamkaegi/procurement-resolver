@@ -1,7 +1,7 @@
 """Validation helpers for canonical procurement releases."""
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -29,6 +29,12 @@ def validate_releases(releases: Iterable[dict[str, Any]]) -> int:
 
 
 def parse_date(value: str | None) -> str | None:
-    if not value:
+    if not value or value.strip().upper() in {"TBD", "N/A", "NA", "UNKNOWN"}:
         return None
-    return datetime.fromisoformat(value.replace("Z", "+00:00")).isoformat()
+    for candidate in (value, value.replace("Z", "+00:00")):
+        try:
+            parsed = datetime.fromisoformat(candidate)
+            return parsed.replace(tzinfo=parsed.tzinfo or timezone.utc).isoformat()
+        except ValueError:
+            continue
+    return datetime.strptime(value, "%m/%d/%Y").replace(tzinfo=timezone.utc).isoformat()

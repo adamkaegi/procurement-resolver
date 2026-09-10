@@ -1,4 +1,5 @@
 source_id: federal_contracts
+jurisdiction: federal
 mapping_version: phase-1-manual
 mappings:
   - canonical: ocid

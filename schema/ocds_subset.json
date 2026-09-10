@@ -58,7 +58,7 @@
     },
     "period": {
       "type": "object",
-      "properties": {"startDate": {"type": "string", "format": "date-time"}, "endDate": {"type": "string", "format": "date-time"}},
+      "properties": {"startDate": {"type": ["string", "null"], "format": "date-time"}, "endDate": {"type": ["string", "null"], "format": "date-time"}},
       "additionalProperties": true
     },
     "contract": {
