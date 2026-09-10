@@ -1,0 +1,96 @@
+# CLAUDE.md — Cross-Jurisdictional Procurement Resolver
+
+Read `docs/SPEC.md` before doing anything. It is the source of truth. This file
+is the set of rules that override convenience.
+
+## What this project is
+
+Two systems over Canadian procurement data (federal / Ontario / City of Ottawa):
+an adapter layer with LLM-generated field mappings and cross-jurisdictional
+vendor resolution, and an MCP agent that answers cross-level questions with
+resolution confidence attached.
+
+The deliverable is **measured reliability**, not a dataset. Every design choice
+serves a number in the eval harness.
+
+## Absolute rules
+
+1. **Never fabricate a metric.** No precision, recall, cost, or latency figure
+   appears in any file unless `evals/run_eval.py` produced it and wrote it to
+   `evals/results/`. If asked to write a README or summary before the eval has
+   run, use `TBD` — never a plausible placeholder.
+
+2. **`evals/gold/` is read-only.** These files are hand-labelled by the human.
+   Never create, edit, extend, or regenerate anything under that directory.
+   If a gold file is missing, STOP and report it. Do not synthesize one.
+   The entire project's validity depends on this.
+
+3. **Source records are immutable.** Raw payloads under `data/raw/` are never
+   modified after fetch. Vendor names are never normalized in place. Resolution
+   writes to the `entity_link` table and points at source records.
+
+4. **Verify before ingesting.** Confirm each source URL is live and record its
+   licence in `source.yaml` before writing an adapter. If a URL 404s or the
+   licence is unclear, STOP and report. Do not substitute a similar-looking
+   source on your own initiative.
+
+5. **No `run_sql` tool on the MCP server.** Typed tools only, per spec Part 9.
+
+6. **Stop conditions are real.** If a phase's acceptance test fails twice, stop
+   and write a failure report to `docs/BLOCKED.md`. Do not work around it, and
+   do not loosen the acceptance test to make it pass.
+
+## LLM usage policy
+
+Per source, not per row — with one deliberate exception (Ottawa document
+extraction, which is necessarily per document).
+
+- Mapping generation: once per source, output committed as reviewable config.
+- Applying mappings: deterministic code, no model calls.
+- Normalization a regex or lookup table can do: use the regex or lookup table.
+- Entity resolution: deterministic blocking + rapidfuzz for the bulk; LLM
+  adjudication only in the uncertain confidence band.
+
+Every LLM call logs tokens, cost, and latency to `evals/results/llm_calls.jsonl`.
+This is a deliverable, not debug output.
+
+Report federal/Ontario onboarding cost and Ottawa per-document extraction cost
+**separately**. Never blend them — they are different economic regimes and
+conflating them hides the finding.
+
+## Decision log
+
+Write an ADR entry in `docs/DECISIONS.md` every time you choose deterministic
+logic over an LLM call, or vice versa. Format: context, decision, alternative
+rejected, consequence. These entries are the source material for the writeup —
+they are more valuable than the code.
+
+## Stack
+
+- Python 3.11+, `uv` for deps
+- DuckDB only. Single file. No server, no Docker, no cloud infra.
+- `rapidfuzz` for string similarity
+- `pydantic` for the canonical model, JSON Schema for validation
+- `fastmcp` for the MCP server
+- `pytest` for tests
+
+Do not add dependencies beyond these without writing an ADR.
+
+## Conventions
+
+- Type hints on everything. `ruff` clean before any commit.
+- Commit at every acceptance test. Message format: `phase-N: <what passed>`.
+- Tests live beside the eval harness, not inside it. Evals measure model
+  behaviour; tests measure code correctness. Do not conflate them.
+- Prefer boring code. This repo will be read by interviewers, not scaled.
+
+## Reporting
+
+At the end of every phase, append to `docs/PROGRESS.md`:
+- what the acceptance test checked and whether it passed
+- anything you had to decide that the spec did not cover
+- anything you are uncertain about
+- anything a human should verify before the next phase
+
+Be specific about uncertainty. A flagged doubt is more useful than a confident
+summary.
