@@ -24,3 +24,11 @@
 - Decision: the generator abstains when a field-name match is not unambiguous and uses a fixed transform registry; no external LLM call was fabricated.
 - Uncertainty: this proves the contract and gate, not LLM mapping quality. A human must replace the provisional set under `evals/gold/` before any metric is reported.
 - Human verification before the next phase: inspect the held-out mapping and decide which model provider and cost schema should replace the offline proposal engine.
+
+## Phase 4
+
+- Acceptance test: not run because the required Ottawa source could not be verified for both usable retrieval and licence.
+- Result: blocked after a capped attempt. The official City of Ottawa pages returned an Incapsula anti-bot challenge; the reachable third-party meeting host did not expose a verifiable open-data licence.
+- Decision: no substitute source was used, and no Ottawa document was downloaded or sent to an extraction model.
+- Uncertainty: the underlying reports may still be publicly available through the meeting host, but their reuse terms remain unverified.
+- Human verification before the next phase: determine whether the City can provide a directly licensed report archive or written reuse permission.

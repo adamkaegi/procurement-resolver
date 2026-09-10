@@ -20,3 +20,10 @@
 - Decision: Implement an offline deterministic proposal engine with conservative abstention, while preserving the model output contract and logging zero model tokens and zero model cost.
 - Alternative rejected: claiming that an unavailable external model generated the provisional mapping.
 - Consequence: The pipeline acceptance is structural and reproducible, but its provisional mapping score is not evidence of LLM mapping quality and must not be reported.
+
+## Phase 4: Ottawa source verification
+
+- Context: Ottawa Delegation of Authority reports are required to be reachable and openly licensed before extraction.
+- Decision: Stop after the official site returned an anti-bot challenge and the reachable third-party meeting host did not expose a verifiable licence.
+- Alternative rejected: substituting an unverified meeting document or scraping a third-party host without licence confirmation.
+- Consequence: Ottawa extraction is blocked and documented; Phase 5 continues with federal and Ontario data only.
