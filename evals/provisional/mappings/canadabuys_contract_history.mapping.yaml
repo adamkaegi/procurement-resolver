@@ -1,0 +1,90 @@
+source_id: canadabuys_contract_history
+generated_at: 2026-09-10T00:00:00Z
+model: provisional-scaffold
+mappings:
+  - canonical: ocid
+    disposition: mapped
+    source_field: solicitationNumber-numeroSollicitation
+    transform: direct_or_reference
+    confidence: high
+    reasoning: Contract history retains the solicitation identifier for the contracting process.
+  - canonical: id
+    disposition: mapped
+    source_field: contractNumber-numeroContrat
+    transform: direct_or_reference
+    confidence: high
+    reasoning: Contract number is the stable release identifier when present.
+  - canonical: date
+    disposition: mapped
+    source_field: contractAwardDate-dateAttributionContrat
+    transform: parse_date_or_publication_date
+    confidence: high
+    reasoning: Award date is the best available release date, with publication as fallback.
+  - canonical: buyer.name
+    disposition: mapped
+    source_field: contractingEntityName-nomEntitContractante-eng
+    transform: direct
+    confidence: high
+    reasoning: The contracting entity is the procuring buyer in this source.
+  - canonical: buyer.id
+    disposition: unmapped
+    confidence: high
+    reasoning: The source has no stable buyer identifier.
+  - canonical: awards[].id
+    disposition: mapped
+    source_field: contractNumber-numeroContrat
+    transform: direct_or_reference
+    confidence: high
+    reasoning: The contract number identifies the award record.
+  - canonical: awards[].date
+    disposition: mapped
+    source_field: contractAwardDate-dateAttributionContrat
+    transform: parse_date_or_publication_date
+    confidence: high
+    reasoning: Award date is explicitly published.
+  - canonical: awards[].value.amount
+    disposition: mapped
+    source_field: totalContractValue-valeurTotaleContrat
+    transform: parse_nonnegative_currency_with_amount_fallback
+    confidence: high
+    reasoning: Total contract value is the non-negative aggregate value for amendments and original awards.
+  - canonical: awards[].value.currency
+    disposition: mapped
+    source_field: contractCurrency-contratMonnaie
+    transform: default_cad
+    confidence: high
+    reasoning: The source publishes an ISO currency field and Canadian records default to CAD when blank.
+  - canonical: awards[].suppliers[].name
+    disposition: mapped
+    source_field: supplierLegalName-nomLegalFournisseur-eng
+    transform: direct_or_operating_name
+    confidence: high
+    reasoning: Supplier legal name preserves the source-published vendor identity.
+  - canonical: awards[].suppliers[].id
+    disposition: unmapped
+    confidence: high
+    reasoning: No supplier identifier is published in the contract-history rows.
+  - canonical: awards[].items[].classification.id
+    disposition: derived
+    source_fields: [unspsc, gsin-nibs]
+    transform: first_present
+    confidence: medium
+    reasoning: The source provides UNSPSC or GSIN classification codes.
+  - canonical: awards[].description
+    disposition: mapped
+    source_field: tenderDescription-descriptionAppelOffres-eng
+    transform: direct_or_title
+    confidence: medium
+    reasoning: Tender description is the closest published award description.
+  - canonical: contracts[].period.startDate
+    disposition: mapped
+    source_field: contractStartDate-contratDateDebut
+    transform: parse_date
+    confidence: high
+    reasoning: Contract start is explicitly published and nullable.
+  - canonical: contracts[].period.endDate
+    disposition: mapped
+    source_field: contractEndDate-dateFinContrat
+    transform: parse_date
+    confidence: high
+    reasoning: Contract end is explicitly published and nullable.

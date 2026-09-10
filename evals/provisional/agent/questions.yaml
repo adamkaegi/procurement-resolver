@@ -1,0 +1,47 @@
+# PROVISIONAL: model-generated scaffolding only; metrics are invalid for reporting.
+questions:
+  - id: A01
+    bucket: A
+    question: What contracts does Bell Canada hold across the federal and Ontario sources?
+    expected_behavior: answer
+    expected_tool: entity_profile
+  - id: A02
+    bucket: A
+    question: Resolve IBM Canada Ltd. and show its known procurement exposure.
+    expected_behavior: answer
+    expected_tool: resolve_vendor
+  - id: A03
+    bucket: A
+    question: Which jurisdictions contain records for 1234567 Ontario Inc.?
+    expected_behavior: answer
+    expected_tool: cross_level_exposure
+  - id: B01
+    bucket: B
+    question: Compare Bell Canada procurement totals in federal and Ontario data.
+    expected_behavior: answer_with_coverage_caveat
+    expected_tool: cross_level_exposure
+  - id: B02
+    bucket: B
+    question: Which buyer appears to award more to IBM Canada Ltd. across jurisdictions?
+    expected_behavior: answer_with_coverage_caveat
+    expected_tool: compare_buyers
+  - id: B03
+    bucket: B
+    question: What is the coverage for federal versus Ontario procurement records from 2018 to 2025?
+    expected_behavior: answer_with_coverage_caveat
+    expected_tool: coverage
+  - id: C01
+    bucket: C
+    question: What was the total Canadian procurement spend of every Bell Canada subsidiary in 2024?
+    expected_behavior: refuse
+    expected_tool: coverage
+  - id: C02
+    bucket: C
+    question: Which jurisdiction had the lowest procurement spending for all vendors in 2020?
+    expected_behavior: refuse
+    expected_tool: coverage
+  - id: C03
+    bucket: C
+    question: Did every Ontario vendor receive a federal contract above the same threshold?
+    expected_behavior: refuse
+    expected_tool: coverage

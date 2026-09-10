@@ -1,0 +1,31 @@
+pair_id,source_a,jurisdiction_a,vendor_a,source_b,jurisdiction_b,vendor_b,label,rationale
+P001,federal_contracts,federal,Amazon Web Services Canada Inc.,canadabuys_award_notices,federal,Amazon Web Services Canada Inc.,match,Exact legal name
+P002,federal_contracts,federal,Microsoft Corporation,ontario_vor,on,Microsoft Canada Inc.,no-match,Parent and Canadian subsidiary are not merged by name alone
+P003,federal_contracts,federal,CGI Information Systems and Management Consultants Inc.,canadabuys_award_notices,federal,CGI Inc.,match,Known legal-name shortening
+P004,federal_contracts,federal,Bell Canada,ontario_vor,on,Bell Canada,match,Exact legal name
+P005,federal_contracts,federal,1234567 Ontario Inc.,ontario_vor,on,1234567 Ontario Inc.,match,Exact numbered company name
+P006,federal_contracts,federal,1234567 Ontario Inc.,canadabuys_award_notices,federal,1234567 Quebec Inc.,no-match,Different jurisdictional numbered company
+P007,federal_contracts,federal,IBM Canada Ltd.,ontario_vor,on,IBM Canada Limited,match,Legal suffix variation
+P008,federal_contracts,federal,The Ottawa Hospital,ontario_vor,on,Ottawa Hospital Research Institute,no-match,Related institutions are distinct entities
+P009,federal_contracts,federal,CompuStaff Inc.,canadabuys_award_notices,federal,CompuStaff Inc,match,Punctuation-only variation
+P010,federal_contracts,federal,Northstar Engineering Ltd.,ontario_vor,on,North Star Engineering Limited,no-match,Token variation requires evidence
+P011,canadabuys_award_notices,federal,Chantier Davie Canada Inc.,ontario_vor,on,Davie Canada Inc.,match,Operating and legal name relationship
+P012,canadabuys_award_notices,federal,Chantier Davie Canada Inc.,ontario_vor,on,Davie Holdings Ltd.,no-match,Parent company distinction
+P013,canadabuys_award_notices,federal,Defence Construction Canada,ontario_vor,on,Defence Construction Canada,match,Exact institutional name
+P014,canadabuys_award_notices,federal,Acme Consulting Inc.,ontario_vor,on,ACME CONSULTING INC.,match,Casing-only variation
+P015,canadabuys_award_notices,federal,Acme Consulting Inc.,ontario_vor,on,Acme Consulting Group Inc.,no-match,Additional legal-name token
+P016,canadabuys_award_notices,federal,Ontario Power Generation Inc.,ontario_vor,on,Ontario Power Generation,match,Legal suffix omission
+P017,canadabuys_award_notices,federal,Ontario Power Generation Inc.,ontario_vor,on,Hydro One Networks Inc.,no-match,Different corporation
+P018,canadabuys_award_notices,federal,Public Works and Government Services Canada,ontario_vor,on,Ministry of Infrastructure,Ontario,no-match,Different government buyer names
+P019,canadabuys_award_notices,federal,Maple Leaf Data Services Ltd.,ontario_vor,on,Maple Leaf Data Services Limited,match,Legal suffix variation
+P020,canadabuys_award_notices,federal,Maple Leaf Data Services Ltd.,ontario_vor,on,Maple Leaf Data Systems Ltd.,no-match,One-token corruption changes identity
+P021,ontario_vor,on,Data Protection Solution,canadabuys_award_notices,federal,Data Protection Solutions Inc.,no-match,VOR description is not a supplier identity
+P022,ontario_vor,on,Open Refresh General Vehicle Acquisitions,canadabuys_award_notices,federal,OpenText Corporation,no-match,Opportunity title is not a vendor
+P023,ontario_vor,on,IBM Canada Limited,federal_contracts,federal,IBM Canada Ltd.,match,Legal suffix variation
+P024,ontario_vor,on,Bell Canada,federal_contracts,federal,Bell Canada,match,Exact legal name across levels
+P025,ontario_vor,on,1234567 Ontario Inc.,federal_contracts,federal,1234567 Ontario Inc.,match,Exact numbered company name
+P026,ontario_vor,on,Ottawa IT Services,federal_contracts,federal,Ottawa IT Service,match,Minor data-entry singularization
+P027,ontario_vor,on,Ottawa IT Services,federal_contracts,federal,Ottawa IT Solutions,no-match,Similar service wording is insufficient
+P028,ontario_vor,on,Canada Clean Supplies,federal_contracts,federal,Canada Cleaning Supplies,no-match,Near-match with changed noun
+P029,ontario_vor,on,General Vehicle Acquisitions,federal_contracts,federal,General Motors of Canada Limited,no-match,Commodity description is not supplier identity
+P030,ontario_vor,on,Tasked Based I&IT Services VOR,federal_contracts,federal,Task Based IT Services Inc.,no-match,Arrangement title and vendor name are not equivalent
