@@ -27,3 +27,10 @@
 - Decision: Stop after the official site returned an anti-bot challenge and the reachable third-party meeting host did not expose a verifiable licence.
 - Alternative rejected: substituting an unverified meeting document or scraping a third-party host without licence confirmation.
 - Consequence: Ottawa extraction is blocked and documented; Phase 5 continues with federal and Ontario data only.
+
+## Phase 5: resolution adjudication fallback
+
+- Context: Bulk resolution should be deterministic, while only the uncertain score band should reach an LLM adjudicator.
+- Decision: Use normalized-name blocking and rapidfuzz scoring; abstain in the uncertain band when no adjudicator is configured.
+- Alternative rejected: forcing every uncertain pair into a match or non-match.
+- Consequence: source names remain verbatim in `entity_link`, uncertain cases remain visible, and provisional metrics cannot be mistaken for adjudicated quality.

@@ -1,0 +1,54 @@
+PROVISIONAL
+{
+  "evaluation": "PROVISIONAL",
+  "pairs_path": "evals/provisional/resolution/pairs.csv",
+  "metrics_by_jurisdiction_pair": {
+    "federal<->federal": {
+      "tp": 3,
+      "fp": 0,
+      "fn": 0,
+      "tn": 0,
+      "abstained": 1,
+      "total": 4,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "federal<->on": {
+      "tp": 8,
+      "fp": 3,
+      "fn": 0,
+      "tn": 3,
+      "abstained": 2,
+      "total": 16,
+      "precision": 0.7272727272727273,
+      "recall": 1.0
+    },
+    "federal<->ottawa": {
+      "tp": 6,
+      "fp": 1,
+      "fn": 0,
+      "tn": 0,
+      "abstained": 1,
+      "total": 8,
+      "precision": 0.8571428571428571,
+      "recall": 1.0
+    },
+    "on<->ottawa": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "tn": 0,
+      "abstained": 1,
+      "total": 2,
+      "precision": 1.0,
+      "recall": 1.0
+    }
+  },
+  "adjudication_band": {
+    "lower_exclusive": 65.0,
+    "upper_exclusive": 92.0,
+    "pairs_adjudicated": 5,
+    "proportion_adjudicated": 0.16666666666666666,
+    "cost_usd": 0.0
+  }
+}

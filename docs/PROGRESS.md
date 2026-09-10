@@ -32,3 +32,12 @@
 - Decision: no substitute source was used, and no Ottawa document was downloaded or sent to an extraction model.
 - Uncertainty: the underlying reports may still be publicly available through the meeting host, but their reuse terms remain unverified.
 - Human verification before the next phase: determine whether the City can provide a directly licensed report archive or written reuse permission.
+
+## Phase 5
+
+- Acceptance test: evaluated the single-path provisional pair file with deterministic normalized-name blocking and rapidfuzz scoring, reporting precision and recall with absolute counts by jurisdiction pair; built the `entity`, `entity_link`, and `coverage` DuckDB tables.
+- Result: passed on provisional scaffolding only. The detailed counts and percentages are in `evals/results/PROVISIONAL_resolution_metrics.log` and are invalid for reporting.
+- Instrumentation: the uncertain score band, adjudicated-pair count, adjudication proportion, and cost placeholder are logged; without a configured model adjudicator, uncertain pairs abstain rather than being forced into a match.
+- Decisions: entity links preserve verbatim source vendor names; exact-normalized clusters use `vendor_to_vendor` mode; no registry identifiers or Ottawa source records were fabricated after Phase 4 was blocked.
+- Uncertainty: the provisional pairs are model-generated and the warehouse contains only federal and Ontario source records, so no production resolution claim is supported.
+- Human verification before the next phase: replace the provisional pair path with `evals/gold/resolution/pairs.csv` after hand labelling, then review entity links and coverage gaps before building agent tools.
