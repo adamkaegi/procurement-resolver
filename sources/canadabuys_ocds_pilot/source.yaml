@@ -1,0 +1,17 @@
+source_id: canadabuys_ocds_pilot
+name: Archived, Pilot of the Open Contracting Data Standard (250 contract records)
+url: https://open.canada.ca/data/en/dataset/60f22648-c173-446f-aa8a-4929d75d63e3
+download_url: https://donnees-data.tpsgc-pwgsc.gc.ca/ba2/pilot-oc-pilote-co/records.zip
+licence: Open Government Licence - Canada
+jurisdiction: federal
+role: schema_ground_truth
+notes: >-
+  Not loaded into the warehouse. This is the Phase 0 acceptance-test fixture
+  only: PSPC's own 2018-2020 National Action Plan OCDS pilot (250 records),
+  already published in OCDS form, used to validate schema/ocds_subset.json
+  against real compiled releases. The pilot's own report concedes it was not
+  a compliant OCDS release and the dataset is archived/discontinued -- do not
+  treat it as an ongoing federal source.
+known_gaps:
+  - "This is a one-time schema-validation fixture, not an ingested source. It contributes zero rows to the releases table."
+  - "The zip was originally fetched and validated in an earlier session but never archived under data/raw/, breaking rule 3 (source records immutable / archived on fetch). Re-fetched and archived 2026-09-11 at data/raw/canadabuys_ocds_pilot/20260911T003826Z/records.zip (sha256 sidecar alongside) to close that gap; re-validation reproduced the original 250-release pass."

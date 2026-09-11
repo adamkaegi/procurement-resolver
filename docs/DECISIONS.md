@@ -42,6 +42,31 @@
 - Alternative rejected: fabricating an LLM extraction call or treating the report text as a clean CSV.
 - Consequence: extraction is reproducible and cost-free at the model layer, while parser confidence and manual spot checks expose the remaining table-layout risk.
 
+## Ottawa licence verification and warehouse load
+
+- Context: `sources/ottawa_contracts_awarded/source.yaml` licence field read
+  "personal-project download, redistribution not assumed" — the Phase 4
+  extraction had run against files whose reuse terms were never confirmed,
+  in tension with CLAUDE.md rule 4. `data/processed/ottawa_contracts_awarded.jsonl`
+  (2,701 validated records) sat unloaded as a result.
+- Decision: verify licence via the City's own ArcGIS Hub catalogue rather than
+  re-fetching or substituting a source. Confirmed the report series is
+  publicly catalogued on `open.ottawa.ca` under the City of Ottawa Open Data
+  Licence v2.0, which permits redistribution and reuse with attribution.
+  7 of 8 local filenames matched a catalogued item title exactly. Loaded the
+  existing extracted records into `releases` on that basis.
+- Alternative rejected: leaving Ottawa unloaded indefinitely pending a licence
+  that, on inspection, already existed; also rejected re-downloading from
+  open.ottawa.ca to replace the escribe-hosted PDFs already archived, since
+  that would be a mid-project source substitution the run instructions call
+  out as something to flag rather than do silently.
+- Consequence: the warehouse now has three jurisdictions. The verification
+  confirms the licence for the *report series*, not byte-identity between the
+  archived PDFs and the catalogue entries — flagged in source.yaml as an open
+  item. Also flagged: the open.ottawa.ca items are structured Feature Services,
+  not PDFs, which is a better Ottawa ingestion path a human should evaluate
+  before further extraction work.
+
 ## Phase 1 resumed: active Ontario VOR export
 
 - Context: The original Ontario VOR outlook contained only 39 planned opportunities and no award values; the page itself pointed to a separate active-arrangements export.

@@ -2,7 +2,31 @@ source_id: ottawa_contracts_awarded
 name: City of Ottawa contracts awarded under delegated authority
 url: https://ottawa.ca/en/business/procurement/contracts-awarded
 document_host: https://pub-ottawa.escribemeetings.com/
-licence: City publication; personal-project download, redistribution not assumed
+licence: City of Ottawa Open Data Licence v2.0 (based on the Open Government Licence - Canada)
+licence_url: https://ottawa.ca/en/city-hall/open-transparent-and-accountable-government/open-data/open-data-licence-version-20
+licence_attribution: "Contains information licensed under the Open Government Licence – City of Ottawa."
+licence_verification: >-
+  The eight downloaded PDF reports were originally pulled from
+  pub-ottawa.escribemeetings.com (a third-party committee-document host) during
+  Phase 4, which does not itself display a licence. Verified 2026-09-10 that
+  the same report series is separately catalogued as public items on the
+  City's actual open data portal (open.ottawa.ca / ottawa.maps.arcgis.com),
+  each with licenseInfo pointing at the Open Data Licence v2.0 page above and
+  access=public. Matched by report title/period against the ArcGIS Hub search
+  API (sharing/rest/search): 7 of 8 local filenames matched a catalogued item
+  title exactly (e.g. item ab9cb1e837b342ec917c7bf6351333af, "Transit Contracts
+  awarded under DOA for the period of Jan 1, 2024 - Jun 30, 2024", a public
+  Feature Service with the same licenseInfo). The 8th local file ("Document 1
+  - Transit Contracts awarded under delegated authority for the per_AODA.pdf")
+  was matched only by naming-pattern similarity to the catalogued "Transit
+  Contracts awarded under DOA Q3 and Q4 2022" item, not an exact title match.
+  This confirms the report series is openly licensed; it does NOT confirm
+  byte-for-byte identity between the escribe-hosted PDFs actually ingested and
+  the open.ottawa.ca catalogue entries (no hash comparison was possible). The
+  open.ottawa.ca items are Feature Services (structured tables), not PDFs -
+  ingesting from that endpoint directly instead of PDF text-extraction is a
+  materially better option a human should evaluate before the next Ottawa
+  extraction pass.
 jurisdiction: ottawa
 value_threshold: 25000
 record_cap: 5000
@@ -12,3 +36,8 @@ notes: >-
   "Contracts awarded for the period January 1, 2023 to June 30, 2022.pdf"
   contains a report for January 1, 2023 to June 30, 2023; preserve the raw
   filename and derive the period from the document text.
+known_gaps:
+  - "Delegation of Authority reports cover procurements over $25,000. A separate Council policy proactively discloses awards of $100,000+ of 'significant public interest'; that separate disclosure is not a source in this warehouse, so Ottawa coverage here is DOA-report coverage, not full City procurement disclosure."
+  - "One Transit delegation-of-authority PDF is image-only and produces no text through the deterministic pypdf parser; it contributed zero records (docs/FAILURES.md #14). OCR or a model-assisted extraction path would be needed to close this gap."
+  - "Extraction is deterministic text-table parsing, not a machine-readable feed; extraction_conf on each record reflects parser confidence (department/approval-type/rationale all found = 0.95, else 0.85), not a guarantee of correctness. docs/PROGRESS.md records a 10-record spot check, not a systematic accuracy measurement."
+  - "Only the 8 archived PDF reports are covered (mid-2022 through mid-2025, per report periods); earlier delegation-of-authority reports are not archived here."

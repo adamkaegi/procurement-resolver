@@ -8,3 +8,7 @@ record_cap: 5000
 encoding: cp1252
 skip_rows: 2
 notes: Official Ontario active VOR export; records describe arrangements and qualified vendors, not individual award values.
+known_gaps:
+  - "Award value is unmapped and deterministically zero: this source publishes no per-transaction value. Zero must never be read as observed spend or summed against sources that do publish values."
+  - "This is a standing-arrangement registry (who is qualified to sell to Ontario under a VOR), not an award ledger -- it does not represent individual Ontario contract awards the way federal_contracts or ottawa_contracts_awarded do."
+  - "Covers only Ontario's VOR program. The OPS Procurement Directive's $25,000 (goods) / $100,000 (services) award-notification thresholds apply to Ontario procurement broadly; this source does not include ministry award notices outside the VOR program, so Ontario coverage in this warehouse is narrower than 'Ontario procurement' as a whole."
