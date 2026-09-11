@@ -42,6 +42,43 @@
 - Alternative rejected: fabricating an LLM extraction call or treating the report text as a clean CSV.
 - Consequence: extraction is reproducible and cost-free at the model layer, while parser confidence and manual spot checks expose the remaining table-layout risk.
 
+## Audit finding: mapping.yaml is not actually applied (not a new decision — flagged, not fixed)
+
+- Context: spec Part 6 calls `mapping.yaml` "GENERATED then reviewed — the core
+  artifact" and says applying it is deterministic code. In the actual
+  pipeline, `src/apply_mapping.py::_release()` branches on
+  `if source_id == "federal_contracts": ...` / `elif source_id ==
+  "canadabuys_award_notices": ...` / `else: # ontario_vor` and hand-reads
+  specific CSV column names directly. It never reads the `source_field` or
+  `transform` keys out of `sources/*/mapping.yaml` at all. Ottawa's
+  `extract_documents.py` is entirely separate again: regex-based PDF parsing
+  that doesn't consult `sources/ottawa_contracts_awarded/mapping.yaml` either.
+  Confirmed by cross-checking: 7 of the 17 distinct `transform:` values used
+  across the four `mapping.yaml` files (`confidence_from_parse_outcome`,
+  `constant_cad`, `constant_ontario_government`, `constant_ottawa`,
+  `parse_nonnegative_currency_with_total_fallback`, `parse_report_period_date`,
+  `stable_source_contract_id`, `stable_source_item_id`) are not in
+  `src/transform_registry.py::TRANSFORMS` at all — if `mapping.yaml` were
+  actually executed against the registry, validation would fail immediately.
+- Decision: leave this as-is and flag it rather than refactor
+  `apply_mapping.py` into a generic mapping-yaml interpreter during this
+  verification pass. A rewrite here changes what actually produced the
+  14,523 rows currently in the warehouse, which is a bigger risk to take
+  unreviewed than reporting the gap honestly.
+- Alternative rejected: silently treating `mapping.yaml` as if it were load-
+  bearing when writing the summary for Adam, or quietly "fixing" the
+  transform names in mapping.yaml to match reality without flagging that the
+  files were never actually exercised.
+- Consequence: `mapping.yaml` is currently decorative — reviewable
+  documentation of what a human intended the mapping to be, not the thing
+  that ran. Success criterion 2 ("at least three sources were mapped by the
+  generator and never hand-corrected") and criterion 4 ("cli eval reproduces
+  all headline metrics") cannot be honestly claimed against the real
+  ingestion path until either `apply_mapping.py` is rewritten to actually
+  interpret `mapping.yaml`, or the spec's claim about `mapping.yaml` being
+  the core artifact is revised to match what the code does. This is a human
+  decision, not one to make silently.
+
 ## Ottawa licence verification and warehouse load
 
 - Context: `sources/ottawa_contracts_awarded/source.yaml` licence field read

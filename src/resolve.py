@@ -161,6 +161,11 @@ def build_entity_store(database: Path, project_root: Path) -> None:
                 connection.execute("INSERT INTO entity_link VALUES (?, ?, ?, ?, ?, ?)", [entity_id, source_id, name, 1.0, "normalized", json.dumps(evidence)])
         for source_file in sorted((project_root / "sources").glob("*/source.yaml")):
             config = yaml.safe_load(source_file.read_text())
+            if config.get("role") == "schema_ground_truth":
+                # e.g. canadabuys_ocds_pilot: a Phase 0 validation fixture, never
+                # ingested into releases. A coverage row for it would misleadingly
+                # read as a source that failed to load 0 records.
+                continue
             count = connection.execute("SELECT COUNT(*) FROM releases WHERE source_id = ?", [config["source_id"]]).fetchone()[0]
             date_start, date_end = connection.execute(
                 "SELECT MIN(TRY_CAST(json_extract_string(record, '$.date') AS TIMESTAMP)), "

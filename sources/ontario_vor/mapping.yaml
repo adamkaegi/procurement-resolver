@@ -2,6 +2,7 @@ source_id: ontario_vor
 jurisdiction: "on"
 encoding: cp1252
 skip_rows: 2
+required_source_field: Vendor of Record (VOR) Number
 buyer_name: Ontario Government
 mapping_version: phase-1-active-vor
 mappings:
