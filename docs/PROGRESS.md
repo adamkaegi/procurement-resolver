@@ -1,5 +1,49 @@
 # Progress
 
+## Phase 6 — MCP server and agent tools (2026-09-11)
+
+- Acceptance test used (adapted from RUNBOOK, since the agent-eval half needs
+  Phase 2 gold questions that don't exist): all five typed tools implemented,
+  unit-tested against a synthetic warehouse (12 tests covering both happy
+  paths and every refusal branch), smoke-tested end-to-end via an in-memory
+  FastMCP client against the real `data/warehouse.duckdb`, and verified live
+  over the exact stdio command Claude Desktop will invoke.
+- Result: passed. `resolve_vendor("Bell Canada")` returns ranked candidates
+  across sources with genuine confidence scores (including an honest, known
+  false-positive artifact — see below). `entity_profile` on the resolved
+  "BELL CANADA" entity returns 28 contracts across federal and Ottawa.
+  `cross_level_exposure` on that entity returns a real per-jurisdiction
+  breakdown (`declined: false`) and correctly excludes 4 CanadaBuys records
+  that happen to be $0 from the dollar total rather than summing them in.
+  The same tool on "Kleenoil Filtration Canada Ltd" (Ottawa-only) correctly
+  returns `declined: true` with a stated reason instead of fabricating a
+  cross-level number — verified against live data, not a fixture.
+- Decisions: refusal logic is entirely rule-based (jurisdiction count,
+  entity-link confidence floor reusing `resolve.UPPER_THRESHOLD`, buyer
+  sample-size floor), not LLM-judged; Claude Desktop is the agent UI, not a
+  custom chat frontend — both are ADR entries in `docs/DECISIONS.md`.
+- Bug found and fixed while smoke-testing against real data (not a fixture):
+  the zero-amount exclusion caveat originally said "this source publishes no
+  per-transaction award value" for *any* source with an all-zero result set.
+  That's true for Ontario VOR by design but was flatly wrong for the 4
+  CanadaBuys "Bell Canada" records that happen to be $0 (real messy source
+  data, confirmed by direct inspection) — CanadaBuys does publish amounts.
+  Reworded to not claim a source-level limitation from a result-level
+  observation.
+- Uncertainty: `resolve_vendor` will surface real matching noise from the
+  known `token_set_ratio` superset-match issue (`FAILURES.md` #17) — e.g. a
+  bare "Bell" scores as a 1.0 "exact" match against "Bell Canada". Left
+  visible rather than filtered, since hiding it would misrepresent the
+  resolution layer's actual, disclosed precision.
+- Not done, and not claimed: a measured agent eval (tool-selection accuracy,
+  bucket-B caveat rate, bucket-C refusal rate) against gold questions —
+  `evals/gold/agent/questions.yaml` is still empty. `docs/AGENT_DEMO.md`'s
+  two scripted prompts are a qualitative existence proof for success
+  criterion 5, not a metric.
+- Human verification before the next phase: connect Claude Desktop using
+  `docs/AGENT_DEMO.md` and confirm the two demo prompts read the way they're
+  expected to in an actual chat, not just via the test client.
+
 ## Verification and reproducibility pass (2026-09-11)
 
 Not a new phase. Picked up the existing build to verify it reproduces, close

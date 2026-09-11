@@ -42,6 +42,41 @@
 - Alternative rejected: fabricating an LLM extraction call or treating the report text as a clean CSV.
 - Consequence: extraction is reproducible and cost-free at the model layer, while parser confidence and manual spot checks expose the remaining table-layout risk.
 
+## Phase 6: MCP server, typed tools, and deterministic refusal logic
+
+- Context: spec Part 9 requires five typed tools, no `run_sql`, confidence on
+  every entity-touching tool, and coverage caveats (with refusal) on every
+  aggregating tool. `evals/gold/agent/questions.yaml` is empty (Phase 2,
+  human-only, untouched) so there is no gold bucket-A/B/C set to build a real
+  agent-eval harness against, and no model credentials are configured.
+- Decision: build `src/agent_tools.py` as plain, typed, pydantic-returning
+  functions over the warehouse (unit-testable with no MCP or model
+  dependency), and `src/server.py` as a thin FastMCP wrapper with no logic of
+  its own. Refusal is entirely rule-based, not LLM-judged:
+  `cross_level_exposure` declines when an entity resolves to fewer than two
+  jurisdictions or when its weakest entity-link confidence falls below
+  `resolve.UPPER_THRESHOLD / 100` (reusing the resolution layer's existing
+  auto-accept bar rather than inventing a second number to justify);
+  `compare_buyers` declines a per-buyer total below a 3-record floor. Sources
+  whose included records are all $0 are excluded from dollar totals with an
+  explicit caveat, never silently summed as zero.
+- Alternative rejected: an LLM-adjudicated refusal step inside the tools
+  (spec explicitly wants typed tools with confidence/caveats attached, not a
+  second model call per query — the interpretive work of turning a
+  declined-aggregate response into a spoken refusal is left to whatever LLM
+  is driving the tools, e.g. Claude Desktop, not baked into the tool). Also
+  rejected: building a custom chat UI. Spec Part 3 explicitly scopes out any
+  UI beyond a CLI/demo notebook, and any MCP client can already drive this
+  server for free (`docs/AGENT_DEMO.md`) — a bespoke frontend would be new,
+  unnecessary infrastructure for a "no server, no cloud infra" stack.
+- Consequence: the tools are real and demoable today (`docs/AGENT_DEMO.md`
+  has a scripted bucket-A / bucket-C-style pair verified against the live
+  warehouse). What's still missing: a *measured* agent eval (tool-selection
+  accuracy, bucket-B caveat-presence rate, bucket-C refusal rate) — that
+  needs the Phase 2 gold questions and is not claimed here. The two demo
+  prompts in `docs/AGENT_DEMO.md` are a qualitative existence proof, not a
+  metric, and must not be reported as one.
+
 ## Audit finding: mapping.yaml is not actually applied (not a new decision — flagged, not fixed)
 
 - Context: spec Part 6 calls `mapping.yaml` "GENERATED then reviewed — the core
