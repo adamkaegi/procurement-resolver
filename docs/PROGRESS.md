@@ -1,5 +1,22 @@
 # Progress
 
+## Data browser Artifact (2026-09-11)
+
+- Built `scripts/export_snapshot.py` (deterministic, read-only, reuses
+  `src/agent_tools.py` — no logic duplicated) and `demo/register_template.html`
+  (self-contained static page, one embedded variable font, vanilla JS,
+  client-side gunzip of the exported snapshot). Published as a Claude
+  Artifact: a searchable/filterable ledger of all 14,523 records plus a
+  dedicated "vendors resolved across jurisdictions" section surfacing all 233
+  cross-jurisdiction matches (headlined by Stantec Consulting Ltd, resolved
+  across all three levels with 129 linked contracts) and the same coverage
+  caveats the MCP server returns.
+- Decision and rejected alternative in `docs/DECISIONS.md`: static snapshot,
+  not a live backend — matches the "no server, no cloud infra" stack rule.
+- Uncertainty: this is a point-in-time snapshot that goes stale the moment
+  the warehouse changes; regeneration is a manual, documented step
+  (`uv run python scripts/export_snapshot.py`, republish), not automatic.
+
 ## Phase 6 — MCP server and agent tools (2026-09-11)
 
 - Acceptance test used (adapted from RUNBOOK, since the agent-eval half needs

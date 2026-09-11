@@ -77,6 +77,29 @@
   prompts in `docs/AGENT_DEMO.md` are a qualitative existence proof, not a
   metric, and must not be reported as one.
 
+## Data browser: static snapshot Artifact, not a live backend
+
+- Context: wanted a clean way to browse the warehouse without building new
+  infrastructure the "no server, no cloud infra" stack rule and spec Part 3's
+  UI scope-cut both argue against.
+- Decision: `scripts/export_snapshot.py` reads the warehouse read-only and
+  writes a gzip+base64 JSON snapshot (all 14,523 releases, all 233
+  cross-jurisdiction resolved entities via the same `agent_tools` functions
+  the MCP server uses, and the 4 coverage rows). `demo/register_template.html`
+  is a self-contained static page (one embedded variable font, vanilla JS,
+  client-side `DecompressionStream` to unpack the snapshot) with no server,
+  no database connection, and no API calls at runtime. Published as a Claude
+  Artifact.
+- Alternative rejected: a live web app backed by a running server and a
+  connection to the warehouse. Would need hosting, and turns a demo asset
+  into something with an ongoing maintenance and security surface for a
+  resume piece that doesn't need one.
+- Consequence: the browser is a point-in-time snapshot, not a live view — it
+  goes stale the moment the warehouse is rebuilt with new data and must be
+  regenerated (`uv run python scripts/export_snapshot.py`, then republish)
+  on purpose, not automatically. `demo/*.b64` and `demo/coverage.json` are
+  gitignored (derived data); the template and export script are committed.
+
 ## Audit finding: mapping.yaml is not actually applied (not a new decision — flagged, not fixed)
 
 - Context: spec Part 6 calls `mapping.yaml` "GENERATED then reviewed — the core

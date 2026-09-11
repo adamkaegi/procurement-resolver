@@ -1,0 +1,626 @@
+<title>The Register — Cross-Jurisdictional Procurement</title>
+<style>
+  @font-face {
+    font-family: "Fraunces";
+    src: url(data:font/ttf;base64,__FRAUNCES_B64__) format("truetype");
+    font-weight: 100 900;
+    font-display: swap;
+  }
+
+  :root {
+    --bg: #EDEFEA;
+    --surface: #F8F9F4;
+    --surface-raised: #FFFFFF;
+    --text: #171B22;
+    --text-dim: #565C68;
+    --text-faint: #878E9B;
+    --line: rgba(23, 27, 34, 0.13);
+    --line-strong: rgba(23, 27, 34, 0.24);
+    --brass: #8C6423;
+    --brass-strong: #6E4E19;
+    --brass-wash: rgba(140, 100, 35, 0.10);
+    --oxblood: #7A2530;
+    --oxblood-wash: rgba(122, 37, 48, 0.09);
+    --forest: #3F6B3E;
+    --forest-wash: rgba(63, 107, 62, 0.10);
+    --j-federal: #33507A;
+    --j-on: #2E6D5F;
+    --j-ottawa: #6B4D82;
+    --shadow: 0 1px 2px rgba(23, 27, 34, 0.06), 0 8px 24px -12px rgba(23, 27, 34, 0.18);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171D;
+      --surface: #1B1F27;
+      --surface-raised: #21252E;
+      --text: #EDEFEA;
+      --text-dim: #A4AAB6;
+      --text-faint: #6D7380;
+      --line: rgba(237, 239, 234, 0.13);
+      --line-strong: rgba(237, 239, 234, 0.24);
+      --brass: #D3A24E;
+      --brass-strong: #E7BD72;
+      --brass-wash: rgba(211, 162, 78, 0.14);
+      --oxblood: #D3717A;
+      --oxblood-wash: rgba(211, 113, 122, 0.14);
+      --forest: #7DB47A;
+      --forest-wash: rgba(125, 180, 122, 0.14);
+      --j-federal: #7E9DD1;
+      --j-on: #6EC0AB;
+      --j-ottawa: #BB96D6;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px -12px rgba(0, 0, 0, 0.5);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14171D; --surface: #1B1F27; --surface-raised: #21252E; --text: #EDEFEA;
+    --text-dim: #A4AAB6; --text-faint: #6D7380; --line: rgba(237, 239, 234, 0.13);
+    --line-strong: rgba(237, 239, 234, 0.24); --brass: #D3A24E; --brass-strong: #E7BD72;
+    --brass-wash: rgba(211, 162, 78, 0.14); --oxblood: #D3717A; --oxblood-wash: rgba(211, 113, 122, 0.14);
+    --forest: #7DB47A; --forest-wash: rgba(125, 180, 122, 0.14);
+    --j-federal: #7E9DD1; --j-on: #6EC0AB; --j-ottawa: #BB96D6; color-scheme: dark;
+  }
+  :root[data-theme="light"] {
+    --bg: #EDEFEA; --surface: #F8F9F4; --surface-raised: #FFFFFF; --text: #171B22;
+    --text-dim: #565C68; --text-faint: #878E9B; --line: rgba(23, 27, 34, 0.13);
+    --line-strong: rgba(23, 27, 34, 0.24); --brass: #8C6423; --brass-strong: #6E4E19;
+    --brass-wash: rgba(140, 100, 35, 0.10); --oxblood: #7A2530; --oxblood-wash: rgba(122, 37, 48, 0.09);
+    --forest: #3F6B3E; --forest-wash: rgba(63, 107, 62, 0.10);
+    --j-federal: #33507A; --j-on: #2E6D5F; --j-ottawa: #6B4D82; color-scheme: light;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+
+  .display {
+    font-family: "Fraunces", Georgia, serif;
+    font-variation-settings: "opsz" 144, "WONK" 1, "SOFT" 0;
+    font-weight: 560;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  .mono {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", "IBM Plex Mono", Menlo, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+  .eyebrow {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+  }
+
+  a { color: var(--brass-strong); }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 28px; }
+
+  /* ---------- header ---------- */
+  header.page {
+    padding: 56px 0 40px;
+    border-bottom: 1px solid var(--line);
+    background:
+      linear-gradient(180deg, var(--brass-wash), transparent 70%);
+  }
+  header.page .eyebrow { margin-bottom: 14px; }
+  header.page h1 {
+    margin: 0 0 12px;
+    font-size: clamp(34px, 5vw, 54px);
+    line-height: 1.03;
+  }
+  header.page p.lede {
+    margin: 0;
+    max-width: 62ch;
+    color: var(--text-dim);
+    font-size: 16.5px;
+  }
+  header.page p.lede b { color: var(--text); font-weight: 600; }
+
+  .stat-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    margin-top: 36px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .stat {
+    background: var(--surface);
+    padding: 18px 20px 16px;
+  }
+  .stat .n {
+    font-family: "Fraunces", Georgia, serif;
+    font-variation-settings: "opsz" 90, "WONK" 1;
+    font-weight: 600;
+    font-size: 32px;
+    line-height: 1;
+    color: var(--text);
+  }
+  .stat .n .unit { font-size: 16px; color: var(--text-faint); font-family: -apple-system, sans-serif; margin-left: 2px; }
+  .stat .label { margin-top: 7px; font-size: 12px; color: var(--text-dim); }
+  .stat.accent .n { color: var(--brass-strong); }
+  @media (max-width: 720px) { .stat-strip { grid-template-columns: repeat(2, 1fr); } }
+
+  /* ---------- sections ---------- */
+  section { padding: 48px 0; border-bottom: 1px solid var(--line); }
+  section:last-of-type { border-bottom: none; }
+  section .section-head {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 20px;
+    flex-wrap: wrap; margin-bottom: 22px;
+  }
+  section h2 {
+    font-size: 25px; margin: 0 0 4px;
+  }
+  section .section-head .desc { color: var(--text-dim); font-size: 13.5px; max-width: 56ch; }
+
+  /* ---------- coverage cards ---------- */
+  .coverage-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 14px;
+  }
+  .coverage-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-top: 3px solid var(--jc);
+    border-radius: 8px;
+    padding: 16px 18px 18px;
+  }
+  .coverage-card .src { font-weight: 650; font-size: 14.5px; margin-bottom: 2px; }
+  .coverage-card .jchip { margin-bottom: 12px; }
+  .coverage-card dl { margin: 0; font-size: 13px; }
+  .coverage-card dl > div { display: flex; justify-content: space-between; gap: 10px; padding: 5px 0; border-top: 1px dashed var(--line); }
+  .coverage-card dl > div:first-child { border-top: none; }
+  .coverage-card dt { color: var(--text-faint); }
+  .coverage-card dd { margin: 0; text-align: right; }
+  .gaps { margin-top: 12px; }
+  .gaps summary {
+    cursor: pointer; font-size: 11.5px; color: var(--brass-strong);
+    font-family: ui-monospace, monospace; letter-spacing: 0.02em;
+  }
+  .gaps ul { margin: 8px 0 0; padding-left: 16px; font-size: 12px; color: var(--text-dim); }
+  .gaps li { margin-bottom: 6px; }
+
+  /* ---------- jurisdiction chip ---------- */
+  .jchip {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; font-weight: 650; letter-spacing: 0.03em; text-transform: uppercase;
+    padding: 3px 8px 3px 6px; border-radius: 100px;
+    background: color-mix(in srgb, var(--jc) 14%, transparent);
+    color: var(--jc);
+  }
+  .jchip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--jc); flex: none; }
+  .jchip.federal { --jc: var(--j-federal); }
+  .jchip.on { --jc: var(--j-on); }
+  .jchip.ottawa { --jc: var(--j-ottawa); }
+  .jrow { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  /* ---------- controls ---------- */
+  .controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 18px; }
+  .search {
+    flex: 1 1 220px; position: relative;
+  }
+  .search input {
+    width: 100%; padding: 9px 12px 9px 32px; border-radius: 7px;
+    border: 1px solid var(--line-strong); background: var(--surface-raised); color: var(--text);
+    font-size: 13.5px; font-family: inherit;
+  }
+  .search input:focus { outline: 2px solid var(--brass); outline-offset: 1px; }
+  .search::before {
+    content: "⌕"; position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
+    color: var(--text-faint); font-size: 15px;
+  }
+  .pill-group { display: flex; gap: 6px; flex-wrap: wrap; }
+  .pill {
+    font-size: 12px; font-weight: 600; padding: 7px 12px; border-radius: 100px;
+    border: 1px solid var(--line-strong); background: var(--surface-raised); color: var(--text-dim);
+    cursor: pointer; font-family: inherit;
+  }
+  .pill:hover { border-color: var(--brass); color: var(--text); }
+  .pill.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+  select.sortsel {
+    padding: 8px 10px; border-radius: 7px; border: 1px solid var(--line-strong);
+    background: var(--surface-raised); color: var(--text); font-size: 12.5px; font-family: inherit;
+  }
+  .count-note { font-size: 12px; color: var(--text-faint); margin: -6px 0 16px; }
+
+  /* ---------- entity cards ---------- */
+  .entity-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px;
+  }
+  .entity-card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+    padding: 14px 16px; cursor: pointer; transition: border-color .12s ease, transform .12s ease;
+  }
+  .entity-card:hover { border-color: var(--brass); }
+  .entity-card:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+  .entity-card .name { font-weight: 650; font-size: 14px; margin-bottom: 8px; text-wrap: balance; }
+  .entity-card .meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .entity-card .contracts { font-size: 12px; color: var(--text-dim); }
+  .entity-card .contracts b { color: var(--text); font-family: ui-monospace, monospace; }
+  .entity-detail {
+    display: none; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line); font-size: 12px;
+  }
+  .entity-card.open .entity-detail { display: block; }
+  .entity-detail .exp-row { display: flex; justify-content: space-between; padding: 4px 0; gap: 8px; }
+  .entity-detail .exp-row .amt { font-family: ui-monospace, monospace; color: var(--text-dim); }
+  .entity-detail .variants { margin-top: 8px; color: var(--text-faint); font-style: italic; }
+  .load-more-wrap { text-align: center; margin-top: 20px; }
+  .load-more {
+    padding: 10px 22px; border-radius: 100px; border: 1px solid var(--line-strong);
+    background: var(--surface-raised); color: var(--text); font-size: 13px; font-weight: 600;
+    cursor: pointer; font-family: inherit;
+  }
+  .load-more:hover { border-color: var(--brass); color: var(--brass-strong); }
+
+  /* ---------- ledger table ---------- */
+  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
+  table.ledger { width: 100%; border-collapse: collapse; min-width: 760px; font-size: 13px; }
+  table.ledger thead th {
+    position: sticky; top: 0; background: var(--surface-raised); text-align: left;
+    padding: 10px 12px; font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase;
+    color: var(--text-faint); border-bottom: 1px solid var(--line-strong); white-space: nowrap;
+  }
+  table.ledger td {
+    padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top;
+  }
+  table.ledger tbody tr:hover { background: var(--brass-wash); }
+  table.ledger .amt { font-family: ui-monospace, monospace; text-align: right; white-space: nowrap; }
+  table.ledger .amt.zero { color: var(--text-faint); }
+  table.ledger .date { font-family: ui-monospace, monospace; white-space: nowrap; color: var(--text-dim); }
+  table.ledger .vendor { font-weight: 600; max-width: 220px; }
+  table.ledger .desc { color: var(--text-dim); max-width: 320px; }
+  table.ledger .jdot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 7px; }
+
+  .pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 16px; }
+  .pager button {
+    padding: 7px 14px; border-radius: 6px; border: 1px solid var(--line-strong);
+    background: var(--surface-raised); color: var(--text); cursor: pointer; font-family: inherit; font-size: 13px;
+  }
+  .pager button:disabled { opacity: 0.35; cursor: default; }
+  .pager .pageinfo { font-size: 12.5px; color: var(--text-dim); font-family: ui-monospace, monospace; }
+
+  /* ---------- footer ---------- */
+  footer {
+    padding: 32px 0 56px;
+  }
+  footer .note {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11.5px; line-height: 1.7; color: var(--text-faint);
+    border-left: 2px solid var(--line-strong); padding-left: 14px; max-width: 68ch;
+  }
+
+  .loading { padding: 80px 0; text-align: center; color: var(--text-faint); font-size: 13px; }
+</style>
+
+<div id="app">
+  <header class="page">
+    <div class="wrap">
+      <div class="eyebrow">Federal &middot; Ontario &middot; City of Ottawa — resolved procurement warehouse</div>
+      <h1 class="display">The Register</h1>
+      <p class="lede">
+        Three governments publish contract awards in three formats, on three schedules, above three different
+        disclosure thresholds. This is what it looks like once a vendor name is <b>resolved</b> across all of
+        them — with the confidence, and the gaps, attached rather than hidden.
+      </p>
+      <div class="stat-strip" id="statStrip"></div>
+    </div>
+  </header>
+
+  <section>
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <h2 class="display">What's actually in here</h2>
+          <div class="desc">Per source: disclosure threshold, archived date range, and the known gaps a human already wrote down about its limits.</div>
+        </div>
+      </div>
+      <div class="coverage-grid" id="coverageGrid"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <h2 class="display">Vendors resolved across jurisdictions</h2>
+          <div class="desc">The whole thesis in one list — every vendor whose name matched across two or more governments. Click a card for the per-jurisdiction breakdown.</div>
+        </div>
+      </div>
+      <div class="controls">
+        <div class="search"><input type="text" id="entitySearch" placeholder="Search resolved vendors…" /></div>
+      </div>
+      <div class="count-note" id="entityCount"></div>
+      <div class="entity-grid" id="entityGrid"></div>
+      <div class="load-more-wrap" id="entityLoadMoreWrap" style="display:none;">
+        <button class="load-more" id="entityLoadMore">Show more</button>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <h2 class="display">Full record ledger</h2>
+          <div class="desc">Every ingested contract award, one row per record, straight from the warehouse.</div>
+        </div>
+      </div>
+      <div class="controls">
+        <div class="search"><input type="text" id="ledgerSearch" placeholder="Search vendor, buyer, description…" /></div>
+        <div class="pill-group" id="jurisdictionPills"></div>
+        <select class="sortsel" id="ledgerSort">
+          <option value="date_desc">Newest first</option>
+          <option value="date_asc">Oldest first</option>
+          <option value="amount_desc">Amount: high to low</option>
+          <option value="amount_asc">Amount: low to high</option>
+          <option value="vendor_asc">Vendor A–Z</option>
+        </select>
+      </div>
+      <div class="count-note" id="ledgerCount"></div>
+      <div class="table-wrap">
+        <table class="ledger">
+          <thead>
+            <tr>
+              <th>Jurisdiction</th><th>Source</th><th>Buyer</th><th>Vendor</th>
+              <th style="text-align:right;">Amount</th><th>Date</th><th>Description</th>
+            </tr>
+          </thead>
+          <tbody id="ledgerBody"></tbody>
+        </table>
+      </div>
+      <div class="pager">
+        <button id="pagerPrev">&larr; Prev</button>
+        <span class="pageinfo" id="pagerInfo"></span>
+        <button id="pagerNext">Next &rarr;</button>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap">
+      <div class="note">
+        NOTE — $0 amounts are excluded from totals above, never summed as confirmed zero spend (Ontario VOR
+        publishes no per-transaction value by design; a handful of other $0 rows are source data artifacts).
+        Vendor resolution is automated normalized/fuzzy name-matching, not a legal-identity lookup — treat every
+        match by its stated confidence, not as ground truth. Static snapshot generated from data/warehouse.duckdb.
+      </div>
+    </div>
+  </footer>
+
+  <div class="loading" id="loadingMsg">loading register…</div>
+</div>
+
+<script>
+const FRAUNCES_B64 = "__FRAUNCES_B64__"; // unused at runtime, font is loaded via @font-face above
+const RELEASES_GZ_B64 = "__RELEASES_B64__";
+const ENTITIES_GZ_B64 = "__ENTITIES_B64__";
+const COVERAGE_JSON = __COVERAGE_JSON__;
+
+const J_LABEL = { federal: "Federal", on: "Ontario", ottawa: "Ottawa" };
+const SRC_LABEL = {
+  federal_contracts: "Federal contracts (proactive disclosure)",
+  canadabuys_award_notices: "CanadaBuys award notices",
+  ontario_vor: "Ontario VOR arrangements",
+  ottawa_contracts_awarded: "Ottawa delegation of authority",
+};
+
+function b64ToBytes(b64) {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+
+async function gunzipJSON(b64) {
+  const bytes = b64ToBytes(b64);
+  const ds = new DecompressionStream("gzip");
+  const stream = new Blob([bytes]).stream().pipeThrough(ds);
+  const text = await new Response(stream).text();
+  return JSON.parse(text);
+}
+
+function fmtMoney(n) {
+  if (n === null || n === undefined) return "—";
+  return "$" + n.toLocaleString("en-CA", { maximumFractionDigits: 0 });
+}
+function fmtInt(n) { return n.toLocaleString("en-CA"); }
+function jdotColor(j) {
+  return j === "federal" ? "var(--j-federal)" : j === "on" ? "var(--j-on)" : j === "ottawa" ? "var(--j-ottawa)" : "var(--text-faint)";
+}
+function escapeHtml(s) {
+  return (s || "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+let RELEASES = [];
+let ENTITIES = [];
+
+function renderStats() {
+  const jurisdictions = new Set(COVERAGE.map(c => c.jurisdiction));
+  const stats = [
+    { n: fmtInt(RELEASES.length), unit: "records", label: "Contract awards ingested", accent: false },
+    { n: COVERAGE.length, unit: "sources", label: "Federal, Ontario &amp; Ottawa combined", accent: false },
+    { n: jurisdictions.size, unit: "levels", label: "Governments represented", accent: false },
+    { n: fmtInt(ENTITIES.length), unit: "vendors", label: "Resolved across jurisdictions", accent: true },
+  ];
+  document.getElementById("statStrip").innerHTML = stats.map(s => `
+    <div class="stat ${s.accent ? "accent" : ""}">
+      <div class="n">${s.n}<span class="unit">${s.unit}</span></div>
+      <div class="label">${s.label}</div>
+    </div>`).join("");
+}
+
+function renderCoverage() {
+  document.getElementById("coverageGrid").innerHTML = COVERAGE.map(c => {
+    const gaps = c.known_gaps || [];
+    const dateRange = (c.date_range_start || "?").slice(0, 10) + " – " + (c.date_range_end || "?").slice(0, 10);
+    return `
+    <div class="coverage-card" style="--jc:${jdotColor(c.jurisdiction)}">
+      <div class="src">${SRC_LABEL[c.source_id] || c.source_id}</div>
+      <div class="jchip ${c.jurisdiction}">${J_LABEL[c.jurisdiction] || c.jurisdiction}</div>
+      <dl>
+        <div><dt>Discloses ≥</dt><dd class="mono">${c.value_threshold ? fmtMoney(c.value_threshold) : "—"}</dd></div>
+        <div><dt>Archived range</dt><dd class="mono">${dateRange}</dd></div>
+        <div><dt>Records</dt><dd class="mono">${fmtInt(c.record_count)}</dd></div>
+      </dl>
+      ${gaps.length ? `<details class="gaps"><summary>${gaps.length} known gap${gaps.length > 1 ? "s" : ""}</summary><ul>${gaps.map(g => `<li>${escapeHtml(g)}</li>`).join("")}</ul></details>` : ""}
+    </div>`;
+  }).join("");
+}
+
+let entityQuery = "";
+let entityShowCount = 24;
+function filteredEntities() {
+  let list = ENTITIES;
+  if (entityQuery) {
+    const q = entityQuery.toLowerCase();
+    list = list.filter(e => e.canonical_name.toLowerCase().includes(q) || e.name_variants.some(v => v.toLowerCase().includes(q)));
+  }
+  return list;
+}
+function renderEntities() {
+  const list = filteredEntities();
+  document.getElementById("entityCount").textContent = `${fmtInt(list.length)} of ${fmtInt(ENTITIES.length)} resolved vendors`;
+  const shown = list.slice(0, entityShowCount);
+  document.getElementById("entityGrid").innerHTML = shown.map(e => `
+    <div class="entity-card" tabindex="0" data-id="${e.entity_id}">
+      <div class="name">${escapeHtml(e.canonical_name)}</div>
+      <div class="meta">
+        <div class="jrow">${e.jurisdictions.map(j => `<span class="jchip ${j}">${J_LABEL[j] || j}</span>`).join("")}</div>
+        <div class="contracts"><b>${e.contract_count}</b> contracts</div>
+      </div>
+      <div class="entity-detail">
+        ${e.exposures.map(x => `
+          <div class="exp-row">
+            <span><span class="jdot" style="background:${jdotColor(x.jurisdiction)}"></span>${J_LABEL[x.jurisdiction] || x.jurisdiction} — ${x.contract_count} contract${x.contract_count === 1 ? "" : "s"}</span>
+            <span class="amt">${x.total_amount !== null ? fmtMoney(x.total_amount) : "no $ value"}</span>
+          </div>`).join("")}
+        <div class="variants">${e.name_variants.map(escapeHtml).join(" · ")}</div>
+      </div>
+    </div>`).join("");
+  document.getElementById("entityLoadMoreWrap").style.display = list.length > entityShowCount ? "block" : "none";
+
+  document.querySelectorAll(".entity-card").forEach(card => {
+    card.addEventListener("click", () => card.classList.toggle("open"));
+    card.addEventListener("keydown", (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); card.classList.toggle("open"); } });
+  });
+}
+
+let ledgerJurisdiction = "all";
+let ledgerQuery = "";
+let ledgerSort = "date_desc";
+let ledgerPage = 0;
+const LEDGER_PAGE_SIZE = 50;
+
+function filteredLedger() {
+  let list = RELEASES;
+  if (ledgerJurisdiction !== "all") list = list.filter(r => r.j === ledgerJurisdiction);
+  if (ledgerQuery) {
+    const q = ledgerQuery.toLowerCase();
+    list = list.filter(r => (r.v || "").toLowerCase().includes(q) || (r.b || "").toLowerCase().includes(q) || (r.t || "").toLowerCase().includes(q));
+  }
+  const sorted = list.slice();
+  switch (ledgerSort) {
+    case "date_desc": sorted.sort((a, b) => (b.d || "").localeCompare(a.d || "")); break;
+    case "date_asc": sorted.sort((a, b) => (a.d || "").localeCompare(b.d || "")); break;
+    case "amount_desc": sorted.sort((a, b) => b.a - a.a); break;
+    case "amount_asc": sorted.sort((a, b) => a.a - b.a); break;
+    case "vendor_asc": sorted.sort((a, b) => (a.v || "").localeCompare(b.v || "")); break;
+  }
+  return sorted;
+}
+
+function renderLedger() {
+  const list = filteredLedger();
+  const totalPages = Math.max(1, Math.ceil(list.length / LEDGER_PAGE_SIZE));
+  ledgerPage = Math.min(ledgerPage, totalPages - 1);
+  const pageItems = list.slice(ledgerPage * LEDGER_PAGE_SIZE, (ledgerPage + 1) * LEDGER_PAGE_SIZE);
+
+  document.getElementById("ledgerCount").textContent = `${fmtInt(list.length)} of ${fmtInt(RELEASES.length)} records match`;
+  document.getElementById("ledgerBody").innerHTML = pageItems.map(r => `
+    <tr>
+      <td><span class="jdot" style="background:${jdotColor(r.j)}"></span>${J_LABEL[r.j] || r.j || "—"}</td>
+      <td style="font-size:11.5px;color:var(--text-faint);">${(SRC_LABEL[r.s] || r.s || "").split(" (")[0]}</td>
+      <td>${escapeHtml(r.b)}</td>
+      <td class="vendor">${escapeHtml(r.v)}</td>
+      <td class="amt ${r.a === 0 ? "zero" : ""}">${r.a === 0 ? "$0" : fmtMoney(r.a)}</td>
+      <td class="date">${r.d || "—"}</td>
+      <td class="desc">${escapeHtml(r.t)}</td>
+    </tr>`).join("");
+  document.getElementById("pagerInfo").textContent = `Page ${ledgerPage + 1} of ${totalPages}`;
+  document.getElementById("pagerPrev").disabled = ledgerPage <= 0;
+  document.getElementById("pagerNext").disabled = ledgerPage >= totalPages - 1;
+}
+
+function renderJurisdictionPills() {
+  const jurisdictions = ["all", ...new Set(COVERAGE.map(c => c.jurisdiction))];
+  document.getElementById("jurisdictionPills").innerHTML = jurisdictions.map(j => `
+    <button class="pill ${j === ledgerJurisdiction ? "active" : ""}" data-j="${j}">${j === "all" ? "All levels" : (J_LABEL[j] || j)}</button>
+  `).join("");
+  document.querySelectorAll(".pill[data-j]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      ledgerJurisdiction = btn.dataset.j;
+      ledgerPage = 0;
+      renderJurisdictionPills();
+      renderLedger();
+    });
+  });
+}
+
+function wireControls() {
+  document.getElementById("entitySearch").addEventListener("input", (e) => {
+    entityQuery = e.target.value.trim();
+    entityShowCount = 24;
+    renderEntities();
+  });
+  document.getElementById("entityLoadMore").addEventListener("click", () => {
+    entityShowCount += 24;
+    renderEntities();
+  });
+  document.getElementById("ledgerSearch").addEventListener("input", (e) => {
+    ledgerQuery = e.target.value.trim();
+    ledgerPage = 0;
+    renderLedger();
+  });
+  document.getElementById("ledgerSort").addEventListener("change", (e) => {
+    ledgerSort = e.target.value;
+    ledgerPage = 0;
+    renderLedger();
+  });
+  document.getElementById("pagerPrev").addEventListener("click", () => { ledgerPage--; renderLedger(); window.scrollTo({ top: document.querySelector("table.ledger").getBoundingClientRect().top + window.scrollY - 100, behavior: "smooth" }); });
+  document.getElementById("pagerNext").addEventListener("click", () => { ledgerPage++; renderLedger(); window.scrollTo({ top: document.querySelector("table.ledger").getBoundingClientRect().top + window.scrollY - 100, behavior: "smooth" }); });
+}
+
+let COVERAGE = COVERAGE_JSON;
+
+async function boot() {
+  const [releases, entities] = await Promise.all([
+    gunzipJSON(RELEASES_GZ_B64),
+    gunzipJSON(ENTITIES_GZ_B64),
+  ]);
+  RELEASES = releases;
+  ENTITIES = entities;
+  document.getElementById("loadingMsg").style.display = "none";
+  renderStats();
+  renderCoverage();
+  renderEntities();
+  renderJurisdictionPills();
+  renderLedger();
+  wireControls();
+}
+boot();
+</script>

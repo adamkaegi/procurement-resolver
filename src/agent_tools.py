@@ -140,7 +140,7 @@ def _coverage_rows(connection: duckdb.DuckDBPyConnection) -> list[dict[str, Any]
     return [dict(zip(columns, row)) for row in rows]
 
 
-def _source_jurisdiction_map(connection: duckdb.DuckDBPyConnection) -> dict[str, str]:
+def source_jurisdiction_map(connection: duckdb.DuckDBPyConnection) -> dict[str, str]:
     return {row["source_id"]: row["jurisdiction"] for row in _coverage_rows(connection)}
 
 
@@ -148,7 +148,7 @@ def _source_jurisdiction_map(connection: duckdb.DuckDBPyConnection) -> dict[str,
 
 
 def resolve_vendor(connection: duckdb.DuckDBPyConnection, name: str, jurisdiction: str | None = None, limit: int = 10) -> ResolveVendorResult:
-    jurisdiction_map = _source_jurisdiction_map(connection)
+    jurisdiction_map = source_jurisdiction_map(connection)
     entities = connection.execute("SELECT entity_id, canonical_name, name_variants FROM entity").fetchall()
 
     candidates: list[EntityCandidate] = []
@@ -194,7 +194,7 @@ def _entity_links(connection: duckdb.DuckDBPyConnection, entity_id: str) -> list
 
 
 def _contracts_for_links(connection: duckdb.DuckDBPyConnection, links: list[EntityLinkSummary]) -> list[ContractSummary]:
-    jurisdiction_map = _source_jurisdiction_map(connection)
+    jurisdiction_map = source_jurisdiction_map(connection)
     contracts: list[ContractSummary] = []
     for link in links:
         rows = connection.execute(

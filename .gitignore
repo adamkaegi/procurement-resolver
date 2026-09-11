@@ -5,3 +5,6 @@ data/processed/
 __pycache__/
 *.pyc
 .env
+demo/*.b64
+demo/coverage.json
+demo/register.html
