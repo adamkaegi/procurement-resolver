@@ -1,5 +1,142 @@
 # Progress
 
+## Verification and reproducibility pass (2026-09-11)
+
+Not a new phase. Picked up the existing build to verify it reproduces, close
+the Ottawa licensing question, rebuild the entity/coverage layer, run the
+RUNBOOK "between phases" audit, and add a pytest suite. Full detail in the
+written summary to Adam; this entry is the durable record.
+
+**Reproducibility.** Added `scripts/rebuild.py`: reads only archived raw
+payloads under `data/raw/` (no network), applies the reviewed mappings,
+validates, loads all four in-scope sources, then rebuilds
+`entity`/`entity_link`/`coverage`. Deleted `data/warehouse.duckdb` and ran it
+three times; the `releases` table is byte-identical run over run once the
+legitimately-varying `_provenance.fetched_at` timestamp is excluded from the
+comparison. This is success criterion 4's warehouse half; `cli eval` (the
+metrics half) still does not exist.
+
+**Warehouse contents.** `releases`: federal_contracts (5,000),
+canadabuys_award_notices (5,000), ontario_vor (1,822),
+ottawa_contracts_awarded (2,701) — 14,523 rows, all four jurisdictions
+represented, full provenance block on every row. `entity`: 6,392. `entity_link`:
+14,523. `coverage`: one row per ingested source with `value_threshold`,
+populated `date_range_start`/`date_range_end` (previously always NULL), and
+`known_gaps` populated from real documented gaps (previously just echoed the
+generic `notes` field).
+
+**Ottawa licence — resolved, not deferred.** The Phase 4 blocker was never
+actually closed: PDFs were downloaded and extracted in a later session
+without the licence question being re-answered. Verified via the City's own
+ArcGIS Hub catalogue (`ottawa.maps.arcgis.com/sharing/rest/search`) that the
+"Contracts awarded / Delegation of Authority" report series is separately
+catalogued on `open.ottawa.ca` as public items licensed under the City of
+Ottawa Open Data Licence v2.0, which permits redistribution and reuse with
+attribution. 7 of 8 locally archived filenames matched a catalogued item title
+exactly. Loaded the 2,701 already-extracted Ottawa records into the
+warehouse on that basis. Full verification trail and caveats (series-level
+confirmation, not byte-identity; the catalogue's items are structured Feature
+Services, a materially better ingestion path than PDF parsing) are in
+`sources/ottawa_contracts_awarded/source.yaml` and `docs/BLOCKED.md`.
+
+**Phase 0 gap closed.** The archived CanadaBuys OCDS pilot zip that Phase 0's
+"passed, 250 releases" result depended on was never archived under
+`data/raw/`, breaking rule 3 and making the original result unreproducible.
+Re-fetched it, archived it properly (`data/raw/canadabuys_ocds_pilot/`, with
+a sha256 sidecar), and re-ran the acceptance test: still 250 releases, still
+passes.
+
+**Re-run acceptance tests.** Phase 0 (250 pilot releases validate — pass,
+see above). Phase 1 (all four sources ingest, validate, load; one query
+returns all four with full provenance — pass, now four sources instead of
+three since Ottawa loaded). Phase 5 provisional resolution eval against
+`evals/provisional/resolution/pairs.csv` — re-ran, output byte-identical to
+the committed `evals/results/PROVISIONAL_resolution_metrics.log`, still
+labelled PROVISIONAL. None of these needed loosening to pass.
+
+**Audit findings (RUNBOOK "between phases").** No fabricated metrics found;
+every number outside `evals/results/PROVISIONAL_*` traces to spec text
+explicitly marked as a placeholder (Part 13). No source substituted without a
+flag — the Ontario VOR swap was already correctly disclosed with an ADR. Real
+findings, all now documented:
+1. **`mapping.yaml` is not actually applied.** `apply_mapping.py` branches on
+   hardcoded `if source_id == "..."` per source and never reads
+   `source_field`/`transform` out of the YAML; `extract_documents.py` doesn't
+   consult Ottawa's mapping.yaml either. Confirmed by cross-check: 7 of 17
+   distinct `transform:` values used across the four mapping.yaml files
+   aren't in `transform_registry.TRANSFORMS` at all — they were never
+   exercised. `mapping.yaml` is currently reviewable documentation, not
+   load-bearing config. See the ADR in `docs/DECISIONS.md`; this is a human
+   call, not something fixed here.
+2. **Federal sources are a truncated, non-random slice.** `federal_contracts`
+   and `canadabuys_award_notices` raw files have ~1.39M and ~786K data rows;
+   only the first 5,000 in file order are loaded (spec's cap, but the scale
+   and non-randomness of the truncation was previously undocumented). Now in
+   each source's `known_gaps`.
+3. **`coverage.date_range_start/end` were always NULL** and `known_gaps` just
+   repeated the generic `notes` field — both fixed (see above); this table
+   exists specifically to make agent refusals honest, so half-populating it
+   defeated the point.
+4. **`required_source_field` was dead config.** `apply_mapping.py` supports
+   filtering footer/note rows via `required_source_field`, and Phase 1's own
+   decision log claims Ontario VOR footer rows are excluded this way — but no
+   `mapping.yaml` ever set it, so the current Ontario export (which happens
+   to have zero such rows right now) would silently ingest a footer row as a
+   fake vendor if one ever appeared, or crash `validate_releases` since a
+   blank `ocid`/`id` fails the schema's `minLength: 1`. Fixed:
+   `sources/ontario_vor/mapping.yaml` now sets it. Verified with a test that
+   the current 1,822-row load is unaffected.
+5. **`pytest.ini_options.pythonpath = ["src"]` was broken** for any module
+   using package-relative imports (`apply_mapping.py`, `resolve.py` via
+   `transform_registry`, `generate_mapping.py`, `extract_documents.py`) —
+   never caught because no tests existed. Fixed to `["."]`.
+6. **A resolution false positive**, found writing tests, not chased down
+   separately: `classify_pair("Acme Consulting Inc.", "Acme Consulting Group
+   Inc.")` scores 100.0 and auto-accepts, but the provisional gold-shaped
+   pairs file labels this exact pair `no-match`. It's `token_set_ratio`
+   treating a strict token superset as a full match; it's one of the three
+   false positives already counted in the federal↔on precision figure.
+   Catalogued as `docs/FAILURES.md` #17. Not fixed — the scoring function is
+   Phase 5's known, disclosed weak point, and this is a concrete instance of
+   it, not a new bug.
+7. **`src/fetch.py` (timestamped-directory + sha256-sidecar convention) is
+   effectively unused.** Every raw file that predates this pass sits in a
+   `phase1/` or `active/` folder with no hash sidecar, meaning it wasn't
+   fetched through the one script that enforces the immutable-archive
+   convention. Nothing has been modified post-fetch (rule 3 intent is
+   intact), but the fetch provenance chain (exact fetch time, hash) doesn't
+   exist for the original four sources the way it now does for the
+   Phase-0 pilot re-fetch. Not fixed — re-fetching the original three CSVs
+   now would change their content (they're live feeds) and there's no
+   reason to disturb already-validated archives.
+8. **No `README.md`** at the repo root, though spec Part 6's architecture
+   lists it first. Not written here — it's a human-voice deliverable per
+   the RUNBOOK's writeup split, not something to draft speculatively.
+9. Phase 4's RUNBOOK explicitly assigns "spot-check ten extracted records
+   against the source PDFs yourself" to the human reviewer. The commit that
+   resumed Ottawa extraction had the agent perform that check itself
+   instead. Flagging it, not redoing it — a second, independent spot-check by
+   Adam is still worth doing before trusting the 2,701 Ottawa records.
+
+**Tests added.** `tests/` (56 tests, all deterministic, no network, no model):
+`test_validate.py`, `test_apply_mapping.py` (against the real committed
+`mapping.yaml` files with synthetic fixture CSVs), `test_resolve.py`
+(normalization, blocking, scoring, classification, the evaluate_pairs
+report shape), `test_transform_registry.py`, `test_extract_documents.py`
+(regex/parsing units plus one integration test against the real archived
+Ottawa PDFs, skipped if they're absent). `uv run pytest` — 56 passed.
+`uv run ruff check .` — clean throughout.
+
+**Still true, unchanged by this pass:** Phase 2 gold sets do not exist and
+were not touched. No real LLM call has ever been made; `evals/results/llm_calls.jsonl`
+does not exist. `src/generate_mapping.py`'s offline scaffold and the
+resolution adjudication band remain untested against real model behaviour.
+Phases 6 and 7 (MCP server, agent, gating sweep, writeup) were not started.
+Success criterion 1 ("seven or more sources") is not met — four sources are
+actually ingested; `canadabuys_ocds_pilot` is schema-validation-only by
+design, and Ontario ministry notices / Open Ottawa / CanadaBuys contract
+history were never built as real adapters.
+
 ## Phase 0
 
 - Acceptance test: fetched the official archived CanadaBuys OCDS pilot records ZIP and validated every English `compiledRelease` against `schema/ocds_subset.json`.
