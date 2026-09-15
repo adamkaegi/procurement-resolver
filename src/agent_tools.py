@@ -154,11 +154,10 @@ def resolve_vendor(connection: duckdb.DuckDBPyConnection, name: str, jurisdictio
     candidates: list[EntityCandidate] = []
     for entity_id, canonical_name, variants_json in entities:
         variants = json.loads(variants_json) or [canonical_name]
-        best_variant, best_score = None, -1.0
-        for variant in variants:
-            score = score_names(name, variant)
-            if score > best_score:
-                best_variant, best_score = variant, score
+        # Score the query against every name variant this entity is known
+        # by, and keep whichever variant scores highest -- that's also the
+        # variant we look up in entity_link just below.
+        best_variant = max(variants, key=lambda variant: score_names(name, variant))
         result = classify_pair(name, best_variant)
         links = connection.execute(
             "SELECT source_id, source_vendor_name FROM entity_link WHERE entity_id = ? AND source_vendor_name = ? LIMIT 1",
@@ -169,13 +168,17 @@ def resolve_vendor(connection: duckdb.DuckDBPyConnection, name: str, jurisdictio
         source_id, matched_name = links
         if jurisdiction and jurisdiction_map.get(source_id) != jurisdiction:
             continue
+        # classify_pair() is also used by the resolution layer's LLM
+        # adjudication band; no adjudicator is passed here, so relabel that
+        # method name to avoid implying a model call that didn't happen.
+        method = result["method"] if result["method"] != "llm_adjudicated" else "fuzzy_unadjudicated"
         candidates.append(EntityCandidate(
             entity_id=entity_id,
             canonical_name=canonical_name,
             matched_source_id=source_id,
             matched_source_vendor_name=matched_name,
             confidence=round(result["confidence"], 3),
-            method=result["method"] if result["method"] != "llm_adjudicated" else "fuzzy_unadjudicated",
+            method=method,
         ))
 
     candidates.sort(key=lambda c: c.confidence, reverse=True)
