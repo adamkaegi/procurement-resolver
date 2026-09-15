@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+# Deliberately network-free and model-free at test time (this repo's own
+# convention, see CLAUDE.md "Conventions" and docs/DECISIONS.md "Real LLM
+# calls for mapping generation"): tests measure code correctness, not model
+# behaviour. No API key or Ollama server is configured or required here.
+# data/raw/ and data/warehouse.duckdb are gitignored and won't exist on this
+# runner; the handful of tests that touch real archived files are guarded
+# with @pytest.mark.skipif and are expected to skip in CI, not fail.
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.5.x"
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Lint (ruff)
+        run: uv run ruff check .
+
+      - name: Test (pytest)
+        run: uv run pytest -v
