@@ -50,6 +50,25 @@ def clean_text(lines: list[str]) -> str:
     return " ".join(" ".join(lines).replace("\u2010", "-").split())
 
 
+def _parse_amount_vendor_rationale(flattened: str) -> tuple[re.Match, float, str, str | None] | None:
+    """The amount is the anchor: everything after it on the same flattened
+    line is "vendor [+ optional non-competitive rationale]". Returns None
+    when neither currency-symbol layout matches (spec Part 8 known case:
+    Ottawa report tables place '$' before or after the amount by period)."""
+    amount_match = AMOUNT_VENDOR_PREFIX.search(flattened) or AMOUNT_VENDOR_SUFFIX.search(flattened)
+    if not amount_match:
+        return None
+    amount = float(amount_match.group(1).replace(",", ""))
+    vendor_and_rationale = amount_match.group(2).strip()
+    rationale_match = re.search(r"\s+(Section\s+\d+.*)$", vendor_and_rationale, re.IGNORECASE)
+    if rationale_match:
+        vendor = vendor_and_rationale[:rationale_match.start()].strip()
+        rationale = rationale_match.group(1).strip()
+    else:
+        vendor, rationale = vendor_and_rationale, None
+    return amount_match, amount, vendor, rationale
+
+
 def extract_records(path: Path, source_id: str = "ottawa_contracts_awarded") -> tuple[list[dict[str, Any]], dict[str, Any]]:
     started = time.perf_counter()
     reader = PdfReader(str(path), strict=False)
@@ -67,20 +86,24 @@ def extract_records(path: Path, source_id: str = "ottawa_contracts_awarded") -> 
         item_number, contract_id = match.groups()
         block = lines[start_index:end_index]
         flattened = clean_text(block)
-        amount_match = AMOUNT_VENDOR_PREFIX.search(flattened) or AMOUNT_VENDOR_SUFFIX.search(flattened)
-        if not amount_match:
+        parsed = _parse_amount_vendor_rationale(flattened)
+        if parsed is None:
             continue
-        amount = float(amount_match.group(1).replace(",", ""))
-        vendor_and_rationale = amount_match.group(2).strip()
-        rationale_match = re.search(r"\s+(Section\s+\d+.*)$", vendor_and_rationale, re.IGNORECASE)
-        rationale = rationale_match.group(1).strip() if rationale_match else None
-        vendor = vendor_and_rationale[:rationale_match.start()].strip() if rationale_match else vendor_and_rationale
+        amount_match, amount, vendor, rationale = parsed
+
         department = next((department for department in DEPARTMENTS if department in flattened), "Unknown Ottawa department")
         approval_match = re.search(r"\b(Initial|Extension|Amendment)\b", flattened, re.IGNORECASE)
         approval_type = approval_match.group(1).title() if approval_match else None
+
+        # The description is whatever text sits between the department name
+        # and the approval type (falling back to the amount's position if no
+        # approval type was found) -- neither boundary is a dedicated field
+        # in the source text, both are inferred from where the other parsed
+        # values happen to land in the flattened line.
         description_start = flattened.find(department) + len(department) if department in flattened else len(contract_id)
         description_end = approval_match.start() if approval_match else amount_match.start()
         description = flattened[description_start:description_end].strip(" -")
+
         confidence = 0.95 if period_end and department != "Unknown Ottawa department" and approval_type and rationale else 0.85
         release_id = f"{source_id}:{contract_id}:{item_number}"
         records.append({
