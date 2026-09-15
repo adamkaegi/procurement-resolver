@@ -55,14 +55,22 @@ Full detail and reasoning in `docs/DECISIONS.md`, "Source-scope expansion" and
   (or in how `_release()` stores `date`) before this table is relied on for
   a precise date-range claim; not fixed here since it's pre-existing and
   outside what was asked.
-- **Not done.** The LLM-adapter ask ("add LLM calls to adaptors, if possible
-  and useful") is wired up as a decision, not as code: no `ANTHROPIC_API_KEY`
-  or `anthropic` dependency exists in this environment, so a real,
-  token/cost-logged model call was not fabricated. `canadabuys_contract_history`'s
-  mapping was hand-written and verified against the real CSV header instead
-  (`sources/canadabuys_contract_history/mapping.yaml`), the same "phase-6-manual"
-  path every other reviewed mapping in this repo already uses. Whether to
-  supply a key so a real call can be made and logged is Adam's call.
+- **LLM-adapter ask: done, via local Ollama, not a hosted API.** Adam
+  declined an API key in favour of a local model (already installed:
+  `ollama version 0.33.3`, several models pulled). Built
+  `src/ollama_mapping.py`, ran it for real against `canadabuys_contract_history`
+  with `qwen2.5:7b-instruct`: attempt 1 failed validation on a misremembered
+  column name (`gsin` instead of `gsin-nibs`), attempt 2 self-corrected and
+  passed. `evals/results/llm_calls.jsonl` now exists for the first time,
+  with two real logged calls (~6,900 input / ~1,250 output tokens each,
+  ~57s latency each, `cost_usd: 0.0` -- genuinely free local inference, not
+  "no model called"). The model's real, unedited output replaced the
+  hand-written `sources/canadabuys_contract_history/mapping.yaml` --
+  deliberately not hand-corrected, per this project's own success criterion
+  2. Full reasoning and the honest quality assessment (it missed a real,
+  usable description column; picked a semantically-off but harmless
+  transform name once) are in `docs/DECISIONS.md`, "Real LLM calls for
+  mapping generation: a local Ollama model, executed."
 - **Human verification before relying on this for the resume writeup.**
   (1) Spot-check `ottawa_historical_contracts` against a couple of the
   source Excel rows directly, the way the original Ottawa PDF extraction was

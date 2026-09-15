@@ -265,32 +265,74 @@
   ingested in this repo, with a real fallback for the CDN behavior actually
   encountered doing it. `pyproject.toml` and `uv.lock` updated accordingly.
 
-## Real LLM calls for mapping generation: wired, not executed
+## Real LLM calls for mapping generation: a local Ollama model, executed
 
 - Context: Adam asked to add LLM calls to the adapters "if possible and
-  useful." `src/generate_mapping.py`'s `propose_mapping()` is the offline,
-  deterministic scaffold from Phase 3 -- it has never called a real model
-  (`evals/results/llm_calls.jsonl` does not exist anywhere in this repo).
-  No `ANTHROPIC_API_KEY` (or any LLM provider credential) is present in this
-  environment, and `anthropic` is not an installed dependency.
-- Decision: do not fabricate a call or claim one happened. Left
-  `generate_mapping.py`'s offline scaffold as the mapping-generation path
-  actually exercised for `canadabuys_contract_history` in this session --
-  its output was hand-verified against the real archived CSV header instead
-  (see `sources/canadabuys_contract_history/mapping.yaml`). Asked Adam
-  whether he can supply an API key so a real, logged call can replace the
-  scaffold for at least one source, per the LLM usage policy ("every LLM
-  call logs tokens, cost, and latency to `evals/results/llm_calls.jsonl`").
-- Alternative rejected: adding an untested `anthropic`-backed code path
-  speculatively and describing it as done. Rejected because CLAUDE.md rule 1
-  ("never fabricate a metric") and the LLM usage policy's logging
-  requirement can't be honestly satisfied by code that has never actually
-  run against a model -- an unexercised integration is a bigger credibility
-  risk on a resume project than not having one yet.
-- Consequence: "LLM-generated adapters" is still not demonstrated against a
-  real model anywhere in this repo. This is the one open item from Adam's
-  three asks in this session; the other two (source scope, more data points)
-  are done and reflected in the warehouse.
+  useful," then specifically declined a hosted-API key in favour of a local
+  Ollama model when asked. `src/generate_mapping.py`'s `propose_mapping()`
+  is the offline, deterministic scaffold from Phase 3 -- it has never called
+  a real model, and `evals/results/llm_calls.jsonl` did not exist anywhere
+  in this repo before this entry.
+- Decision: built `src/ollama_mapping.py` as a companion module (kept
+  separate from `generate_mapping.py` so that module's own "without an
+  external model endpoint" docstring stays true, and so pytest -- which
+  measures code correctness, not model behaviour, per CLAUDE.md
+  "Conventions" -- never needs a live model to pass). It calls a locally
+  running Ollama server (confirmed already installed: `ollama version
+  0.33.3`, several models pulled), prompts `qwen2.5:7b-instruct` (the
+  strongest instruction-following model available locally for a structured-
+  JSON task among what was already pulled) with the canonical-field list,
+  the registered-transform whitelist, the source's real column names, and
+  three real sample rows, requesting a mapping shaped exactly like
+  `generate_mapping.py`'s existing schema. Reuses that module's
+  `validate_mapping`/`validate_sample` unchanged as the acceptance gate --
+  one validation gate for both the offline and the real-model path.
+  Retries up to 3x on validation failure, logging every attempt (pass or
+  fail) to `evals/results/llm_calls.jsonl`, with `cost_usd: 0.0` and an
+  honest `cost_note` ("local inference via Ollama, no metered API cost") --
+  distinct in meaning from the offline scaffold's `cost_usd: 0.0`, which
+  means no model ran at all.
+- Executed against the real archived `canadabuys_contract_history` CSV
+  header (91 real columns, 3 real sample rows). First attempt failed
+  validation (`unknown source field for awards[].items[].classification.id:
+  gsin` -- the model wrote the field name it remembered instead of the
+  real `gsin-nibs` column); the retry self-corrected and passed on attempt
+  2. Real, logged numbers for that pair of calls: ~6,900 input tokens,
+  ~1,250-1,270 output tokens each, ~57s latency each, on this machine's CPU.
+  The model's own output (unedited -- see "consequence" below) replaced the
+  hand-written `sources/canadabuys_contract_history/mapping.yaml` from the
+  earlier "Source-scope expansion" entry above.
+- A prompt bug caught and fixed mid-session: the first two real attempts
+  (before this) failed validation because the prompt's own example showed
+  an "unmapped" entry omitting the `transform` key -- the schema actually
+  requires `transform: "unmapped"` even on unmapped entries, and the model
+  faithfully copied the flawed example every time. Fixed the example and
+  added an explicit instruction; the corrected prompt passed within one
+  retry against real data.
+- Alternative rejected: a hosted API (Anthropic or otherwise) -- explicitly
+  declined by Adam in favour of zero-cost local inference. Also rejected:
+  hand-correcting the model's output before committing it. The project's
+  own success criterion 2 ("mapped by the generator and never hand-
+  corrected") asks for the generator's real output, not a human-polished
+  version of it -- so genuine quality gaps are disclosed below, not quietly
+  fixed.
+- Consequence, stated plainly: the committed, model-generated mapping is
+  real but imperfect. Human review (this session) found it left
+  `awards[].description` unmapped despite `tenderDescription-
+  descriptionAppelOffres-eng` being present and usable in the real header
+  (a genuine miss, not a defensible abstention like its correct choice to
+  leave `ocid` unmapped), and picked `default_cad` -- a currency-default
+  transform, not a currency-parsing one -- for `awards[].value.amount` on
+  one of the two real runs. Neither breaks ingestion: `apply_mapping.py`'s
+  `_release()` is hardcoded per source_id and has never actually read
+  `mapping.yaml`'s per-field `transform`/`source_field` values (see "Phase 1
+  mapping.yaml is documentation, not executable config" below) -- true
+  again here, so this is the first source where that gap is arguably a
+  safety net rather than only a liability. `evals/results/llm_calls.jsonl`
+  now exists as a real deliverable with two real logged calls. "LLM-
+  generated adapters" is now demonstrated end-to-end for one source, with
+  its real accuracy limitations disclosed rather than smoothed over --
+  exactly what a resume claim needs to be honest.
 
 ## Phase 1 resumed: active Ontario VOR export
 
