@@ -1,5 +1,77 @@
 # Progress
 
+## Source-scope expansion (2026-09-15)
+
+Not a phase from `docs/SPEC.md` -- picked up at Adam's request to expand
+source scope for the resume writeup, staying within federal/Ontario/Ottawa.
+Full detail and reasoning in `docs/DECISIONS.md`, "Source-scope expansion" and
+"`openpyxl` dependency and a `curl` fallback"; this is the durable summary.
+
+- **What was added.** Two new sources, both verified live and licence-checked
+  before writing an adapter (CLAUDE.md rule 4): `canadabuys_contract_history`
+  (federal; PWGSC/PSPC's full contract-history CSV, OGL-Canada, distinct
+  dataset from the existing `canadabuys_award_notices`) and
+  `ottawa_historical_contracts` (Ottawa; 2020-2022 delegation-of-authority
+  Excel workbooks, City of Ottawa Open Data Licence v2.0, extending Ottawa
+  coverage backward from `ottawa_contracts_awarded`'s 2023-onward start with
+  no date overlap by design). Sources: 4 -> 6. `releases`: 14,523 -> 23,426.
+  `entity`: 6,392 -> 9,030. `entity_link`: 14,523 -> 23,426.
+- **What was checked and rejected, not silently skipped.** Searched for a
+  second Ontario source (ministry award notices / Broader Public Sector
+  disclosure, the original spec's "Ontario ministry notices" gap) and for a
+  1H-2020/2016-2019 Ottawa extension. Neither had a real, live, openly-
+  licensed, structurally-consistent dataset behind it at the point this
+  session stopped searching -- both are documented as deliberate scope cuts
+  in `docs/DECISIONS.md`, not silent gaps. Ontario is still single-sourced.
+  Ontario and municipality count were both explicitly out of scope per
+  Adam's instruction (stay at 3 jurisdictions), so this was not attempted.
+- **Acceptance check used.** `scripts/rebuild.py` end-to-end from archived
+  raw payloads only (no network calls during rebuild), all 23,426 releases
+  round-trip-validate against `schema/ocds_subset.json`, `coverage` picks up
+  both new sources automatically with populated date ranges and known_gaps,
+  `ruff check .` clean, `pytest` 73 passed (up from 68 -- added
+  `tests/test_ingest_ottawa_open_data.py`, extended `tests/test_apply_mapping.py`).
+  Smoke-tested `agent_tools.resolve_vendor`/`cross_level_exposure` directly
+  against the rebuilt warehouse: "Kleenoil Filtration Canada Ltd" (the
+  `docs/AGENT_DEMO.md` bucket-C example) now resolves 3 contracts across
+  both Ottawa sources instead of 2, and still correctly declines cross-level
+  exposure (still a single jurisdiction) -- the demo's behavior is
+  unchanged, just backed by more data.
+- **Real infrastructure fix, not scope-cosmetic.** `src/fetch.py`'s
+  timestamped-directory + sha256-sidecar archival convention -- flagged in
+  the previous verification pass as "effectively unused" -- was actually
+  exercised for the first time on these two sources, including fixing a
+  real `403`/silent-HTML-block-page failure mode against two different CDNs
+  (see the ADR). The four original sources' raw files remain un-migrated to
+  this convention; not touched here per that same ADR's original reasoning
+  (re-fetching live feeds would change already-validated archived content).
+- **Uncertainty, flagged not fixed.** `coverage.date_range_start` for
+  `ottawa_contracts_awarded` reads 2023-06-30 (a report *period-end* date,
+  since `extract_documents.py` stores period-end as every record's `date`),
+  not the true 2023-01-01 start implied by that PDF's own text. This
+  predates this session's changes, but it now visually reads as a Jan-Jun
+  2023 coverage gap between the two Ottawa sources when the real coverage is
+  contiguous. Worth fixing in `build_entity_store`'s date-range computation
+  (or in how `_release()` stores `date`) before this table is relied on for
+  a precise date-range claim; not fixed here since it's pre-existing and
+  outside what was asked.
+- **Not done.** The LLM-adapter ask ("add LLM calls to adaptors, if possible
+  and useful") is wired up as a decision, not as code: no `ANTHROPIC_API_KEY`
+  or `anthropic` dependency exists in this environment, so a real,
+  token/cost-logged model call was not fabricated. `canadabuys_contract_history`'s
+  mapping was hand-written and verified against the real CSV header instead
+  (`sources/canadabuys_contract_history/mapping.yaml`), the same "phase-6-manual"
+  path every other reviewed mapping in this repo already uses. Whether to
+  supply a key so a real call can be made and logged is Adam's call.
+- **Human verification before relying on this for the resume writeup.**
+  (1) Spot-check `ottawa_historical_contracts` against a couple of the
+  source Excel rows directly, the way the original Ottawa PDF extraction was
+  spot-checked -- this session did not repeat that check. (2) Confirm the
+  Ontario-second-source and 2016-2019/H2-2020 search conclusions with your
+  own domain knowledge; a general web search is not exhaustive. (3) Decide
+  whether to supply an LLM API key to close the real-model-call gap, or to
+  revise the resume line to not claim it.
+
 ## Data browser Artifact (2026-09-11)
 
 - Built `scripts/export_snapshot.py` (deterministic, read-only, reuses

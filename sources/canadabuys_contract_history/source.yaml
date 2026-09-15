@@ -1,0 +1,31 @@
+source_id: canadabuys_contract_history
+name: CanadaBuys contract history
+url: https://open.canada.ca/data/en/dataset/4fe645a1-ffcd-40c1-9385-2c771be956a4
+download_url: https://canadabuys.canada.ca/opendata/pub/2024-2025-contractHistory-contratsOctroyes.csv
+licence: Open Government Licence - Canada
+licence_url: https://open.canada.ca/en/open-government-licence-canada
+licence_verification: >-
+  Verified 2026-09-15 via the Open Government Portal CKAN API
+  (open.canada.ca/data/api/action/package_show?id=4fe645a1-ffcd-40c1-9385-2c771be956a4),
+  which reports license_title "Open Government Licence - Canada" for this
+  dataset -- the same licence already used for federal_contracts and
+  canadabuys_award_notices. The dataset replaced an archived predecessor
+  (53753f06-8b28-42d7-89f7-04cd014323b0) as authoritative on 2023-06-01 and is
+  refreshed monthly. Fetched the closed 2024-2025 fiscal-year CSV specifically
+  (not the current 2026-2027 or "complete" file) so the archived snapshot
+  represents one finished, non-partial fiscal year.
+jurisdiction: federal
+value_threshold: 10000
+record_cap: 5000
+format: CSV, one row per contract (amendments recorded as separate rows with the same referenceNumber)
+notes: >-
+  Distinct in kind from canadabuys_award_notices (which mirrors individual
+  award-notice publications): this is PWGSC/PSPC's full contract-history
+  ledger, published since 2009, and is the source the offline
+  evals/provisional/mappings/generated_canadabuys_contract_history.mapping.yaml
+  scaffold in Phase 3 was written against but never actually ingested.
+known_gaps:
+  - "Same $10,000 federal proactive-disclosure threshold as the other two federal sources; smaller awards are structurally absent."
+  - "Archived raw file (2024-2025 fiscal year only) has 109,216 data rows; only the first 5,000 (record_cap) are loaded per the spec's volume cap. This is the first 5,000 rows in file order, not a random sample."
+  - "Overlaps in principle with federal_contracts and canadabuys_award_notices -- the same underlying contract can legitimately appear across all three federal sources without that being a resolution duplicate. This warehouse does not attempt cross-source contract-ID reconciliation within a jurisdiction, only cross-jurisdiction vendor resolution."
+  - "unspsc classification is frequently blank in this export (observed on the sampled fiscal year); gsin-nibs is the more reliably populated classification field here."

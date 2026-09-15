@@ -95,6 +95,49 @@ def test_ontario_vor_excludes_rows_missing_required_field(tmp_path):
     assert releases[0]["id"] == "VOR-1"
 
 
+def test_canadabuys_contract_history_maps_core_fields(tmp_path):
+    csv_path = tmp_path / "contract_history.csv"
+    header = (
+        "solicitationNumber-numeroSollicitation,referenceNumber-numeroReference,"
+        "contractAwardDate-dateAttributionContrat,publicationDate-datePublication,"
+        "contractingEntityName-nomEntitContractante-eng,"
+        "supplierLegalName-nomLegalFournisseur-eng,supplierOperatingName-nomCommercialFournisseur-eng,"
+        "contractAmount-montantContrat,totalContractValue-valeurTotaleContrat,"
+        "tenderDescription-descriptionAppelOffres-eng,title-titre-eng,unspsc,gsin-nibs,"
+        "contractStartDate-contratDateDebut,contractEndDate-dateFinContrat,contractCurrency-contratMonnaie\n"
+    )
+    row = "SOL-1,REF-1,2024-11-13,2024-11-29,Buyer C,Vendor C,Vendor C Operating,924247.00,924247.00,Tender desc,Title,,GSIN1,,2026-02-13,CAD\n"
+    csv_path.write_text(header + row)
+    releases = ingest_csv(csv_path, ROOT / "sources/canadabuys_contract_history/mapping.yaml")
+    assert len(releases) == 1
+    release = releases[0]
+    assert release["ocid"] == "SOL-1"
+    assert release["id"] == "REF-1"
+    assert release["buyer"]["name"] == "Buyer C"
+    assert release["awards"][0]["suppliers"][0]["name"] == "Vendor C"
+    assert release["awards"][0]["value"]["amount"] == 924247.0
+    assert release["_provenance"]["source_id"] == "canadabuys_contract_history"
+
+
+def test_canadabuys_contract_history_negative_amount_falls_back_to_total_value(tmp_path):
+    csv_path = tmp_path / "contract_history.csv"
+    header = (
+        "solicitationNumber-numeroSollicitation,referenceNumber-numeroReference,"
+        "contractAwardDate-dateAttributionContrat,publicationDate-datePublication,"
+        "contractingEntityName-nomEntitContractante-eng,"
+        "supplierLegalName-nomLegalFournisseur-eng,supplierOperatingName-nomCommercialFournisseur-eng,"
+        "contractAmount-montantContrat,totalContractValue-valeurTotaleContrat,"
+        "tenderDescription-descriptionAppelOffres-eng,title-titre-eng,unspsc,gsin-nibs,"
+        "contractStartDate-contratDateDebut,contractEndDate-dateFinContrat,contractCurrency-contratMonnaie\n"
+    )
+    row = "SOL-1,REF-1,2024-02-01,2024-01-01,Buyer D,,Vendor D Operating,-1,75000,,Title,,GSIN1,,,CAD\n"
+    csv_path.write_text(header + row)
+    releases = ingest_csv(csv_path, ROOT / "sources/canadabuys_contract_history/mapping.yaml")
+    assert releases[0]["awards"][0]["value"]["amount"] == 75000.0
+    # falls back to the operating name when the legal name is blank
+    assert releases[0]["awards"][0]["suppliers"][0]["name"] == "Vendor D Operating"
+
+
 def test_ingest_csv_respects_record_limit(tmp_path):
     csv_path = tmp_path / "contracts.csv"
     header = (

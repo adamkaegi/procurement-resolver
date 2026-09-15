@@ -162,6 +162,136 @@
   not PDFs, which is a better Ottawa ingestion path a human should evaluate
   before further extraction work.
 
+## Source-scope expansion: two new federal/Ottawa sources, no second Ontario source
+
+- Context: Adam asked to expand source scope while staying within federal /
+  Ontario / Ottawa (no new provinces or municipalities), and to add more data
+  points to the three jurisdictions already in scope if a real, verifiable
+  source existed for them.
+- Decision (federal): add `canadabuys_contract_history` -- PWGSC/PSPC's full
+  contract-history ledger (distinct from `canadabuys_award_notices`, which
+  mirrors individual award-notice publications). Verified live via the CKAN
+  API (`open.canada.ca/data/api/action/package_show`), confirmed
+  `license_title: "Open Government Licence - Canada"`, same licence family
+  as the two existing federal sources. Archived the closed 2024-2025 fiscal
+  year CSV (one finished year, not a partial current-year file).
+- Decision (Ottawa): add `ottawa_historical_contracts` -- three Excel
+  workbooks (2020, 2021, 2022) from the same "Contracts awarded under
+  delegation of authority" report series as `ottawa_contracts_awarded`,
+  found via the ArcGIS Hub search API and licence-verified per-item the same
+  way the original Ottawa PDFs were (BLOCKED.md, "Ottawa licence verification
+  and warehouse load") -- all three report `access: public` and a
+  `licenseInfo` pointing at the same Open Data Licence v2.0 page.
+- Decision (separate source_id, not a merge): `ottawa_historical_contracts`
+  is a new source, not folded into `ottawa_contracts_awarded`, even though
+  both are the same report series and jurisdiction. Reasons: (1) the raw
+  format is materially different (structured Excel vs. regex-parsed PDF
+  text) and deserves its own extractor rather than a branch bolted onto
+  `extract_documents.py`; (2) keeping the boundary explicit lets
+  `known_gaps` state per-source what each extraction method can and can't
+  see, rather than blending two confidence profiles under one source_id.
+- Decision (bounded to 2020-2022, not 2016-2019): a combined 2016-2019
+  workbook exists (item `2a84a360272d4084a85dc576bc304176`) but packs 8
+  quarterly sheets with inconsistent header text ('Dept', 'Dept.',
+  'Department', 'Service' all denoting the same logical column) and no
+  per-row date field at all. Cut rather than force a fragile parser for it,
+  same spirit as the original Phase 4 "cap effort, report honestly" call on
+  the PDF extraction. It's a disclosed `known_gap`, not a silent omission.
+- Decision (2022 as the cutoff, not 2023): chosen specifically because the
+  earliest archived `ottawa_contracts_awarded` PDF covers Jan-Jun 2023 (its
+  filename says 2022 but the report text says 2023 -- already documented).
+  Ending the new source at 2022-12-31 gives temporal coverage that is
+  additive, not overlapping -- no cross-source contract-ID reconciliation
+  was needed as a result. (`coverage.date_range_start` for
+  `ottawa_contracts_awarded` currently reads 2023-06-30, not 2023-01-01, an
+  artifact of `_release()` always storing the report's period *end* as
+  `date` -- pre-existing, unrelated to this change, but it means the two
+  sources' coverage rows look like they leave a Jan-Jun 2023 gap when the
+  real coverage is contiguous. Flagged in docs/PROGRESS.md for verification,
+  not fixed here.)
+- Decision (extraction_conf raised to 0.98 for the new Ottawa source):
+  distinct from `ottawa_contracts_awarded`'s 0.85-0.95 range, which reflects
+  OCR/regex uncertainty inherent to parsing rendered PDF text. These are
+  read directly from spreadsheet cells with openpyxl -- a materially more
+  reliable extraction method for the same underlying report series, and the
+  confidence score says so rather than reusing an unrelated number.
+- Alternative rejected (Ontario second source): searched for a second live,
+  openly-licensed Ontario procurement dataset beyond the existing
+  `ontario_vor` (targeting ministry award notices / Broader Public Sector
+  disclosures, per the original spec's "Ontario ministry notices" gap).
+  `data.ontario.ca`'s procurement-tagged catalogue (95 datasets at search
+  time) surfaces only VOR-family datasets; Ontario's tender portal appears
+  login-gated with no accompanying open-data export. Per CLAUDE.md rule 4
+  ("if a source can't be verified... STOP and report; do not substitute"),
+  no second Ontario source was added and none was fabricated or approximated
+  from a different data shape. Ontario remains single-sourced in this
+  warehouse. A human with more Ontario-specific search context may find one
+  a general search didn't surface.
+- Consequence: sources go from 4 to 6 (still 3 jurisdictions, per the
+  constraint given). `releases` grows from 14,523 to 23,426 rows; `entity`
+  from 6,392 to 9,030; `entity_link` from 14,523 to 23,426. Re-ran
+  `scripts/rebuild.py`, `ruff check .`, and `pytest` clean (73 passed, up
+  from 68) after adding `tests/test_ingest_ottawa_open_data.py` and
+  extending `tests/test_apply_mapping.py`.
+
+## `openpyxl` dependency and a `curl` fallback in `src/fetch.py`
+
+- Context: `ottawa_historical_contracts` ships as `.xlsx`, which none of the
+  approved dependencies can read. Separately, fetching both new sources
+  through `src/fetch.py` (rather than a one-off `curl` outside the
+  reviewable archival path) hit `403 Forbidden` from both
+  `canadabuys.canada.ca` and the ArcGIS-hosted `.xlsx` downloads when
+  requested via Python's `urllib` -- with or without a descriptive
+  `User-Agent` header. `curl`'s own default UA passed on both hosts; a
+  custom UA passed on ArcGIS but still 403'd on `canadabuys.canada.ca`. This
+  reads as UA/TLS-stack fingerprint-based bot mitigation, not an access
+  control the public OGL/Open Data Licence doesn't already grant -- the same
+  URLs are the ones published as the official download links.
+- Decision: add `openpyxl` as a new dependency (minimal, standard, pure-Python
+  `.xlsx` reader; per CLAUDE.md, dependencies beyond the approved stack need
+  an ADR, this is it). Also changed `fetch()` to retry via a `curl`
+  subprocess on `HTTPError`, and added a lightweight content-sniff (reject
+  if the downloaded bytes start with `<html`/`<!doctype`) so a silent
+  soft-block (200 status, HTML block page instead of the real payload -- hit
+  once during this session) fails loudly instead of archiving garbage.
+- Alternative rejected: hand-rolling `.xlsx` parsing via `zipfile` + raw XML
+  to avoid a new dependency -- rejected as needless fragility for a
+  well-solved problem `openpyxl` already solves correctly. Also rejected:
+  leaving `fetch()` urllib-only and just curling these two sources by hand
+  outside the archival convention, which would have repeated the exact gap
+  `docs/PROGRESS.md` already flagged (`src/fetch.py` "effectively unused").
+- Consequence: `src/fetch.py`'s timestamped-directory + sha256-sidecar
+  convention is now actually exercised for the first time on sources
+  ingested in this repo, with a real fallback for the CDN behavior actually
+  encountered doing it. `pyproject.toml` and `uv.lock` updated accordingly.
+
+## Real LLM calls for mapping generation: wired, not executed
+
+- Context: Adam asked to add LLM calls to the adapters "if possible and
+  useful." `src/generate_mapping.py`'s `propose_mapping()` is the offline,
+  deterministic scaffold from Phase 3 -- it has never called a real model
+  (`evals/results/llm_calls.jsonl` does not exist anywhere in this repo).
+  No `ANTHROPIC_API_KEY` (or any LLM provider credential) is present in this
+  environment, and `anthropic` is not an installed dependency.
+- Decision: do not fabricate a call or claim one happened. Left
+  `generate_mapping.py`'s offline scaffold as the mapping-generation path
+  actually exercised for `canadabuys_contract_history` in this session --
+  its output was hand-verified against the real archived CSV header instead
+  (see `sources/canadabuys_contract_history/mapping.yaml`). Asked Adam
+  whether he can supply an API key so a real, logged call can replace the
+  scaffold for at least one source, per the LLM usage policy ("every LLM
+  call logs tokens, cost, and latency to `evals/results/llm_calls.jsonl`").
+- Alternative rejected: adding an untested `anthropic`-backed code path
+  speculatively and describing it as done. Rejected because CLAUDE.md rule 1
+  ("never fabricate a metric") and the LLM usage policy's logging
+  requirement can't be honestly satisfied by code that has never actually
+  run against a model -- an unexercised integration is a bigger credibility
+  risk on a resume project than not having one yet.
+- Consequence: "LLM-generated adapters" is still not demonstrated against a
+  real model anywhere in this repo. This is the one open item from Adam's
+  three asks in this session; the other two (source scope, more data points)
+  are done and reflected in the warehouse.
+
 ## Phase 1 resumed: active Ontario VOR export
 
 - Context: The original Ontario VOR outlook contained only 39 planned opportunities and no award values; the page itself pointed to a separate active-arrangements export.

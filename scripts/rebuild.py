@@ -25,6 +25,7 @@ import yaml  # noqa: E402
 
 from src.apply_mapping import ingest_csv  # noqa: E402
 from src.extract_documents import extract_directory  # noqa: E402
+from src.ingest_ottawa_open_data import extract_all as extract_ottawa_historical  # noqa: E402
 from src.load import load_releases  # noqa: E402
 from src.resolve import build_entity_store  # noqa: E402
 from src.validate import validate_releases  # noqa: E402
@@ -38,11 +39,16 @@ CSV_SOURCES = {
     "federal_contracts": ROOT / "data/raw/federal_contracts/phase1/contracts.csv",
     "canadabuys_award_notices": ROOT / "data/raw/canadabuys_award_notices/phase1/awards.csv",
     "ontario_vor": ROOT / "data/raw/ontario_vor/active/enterprise_vor_program.csv",
+    "canadabuys_contract_history": ROOT / "data/raw/canadabuys_contract_history/20260915T181857Z/contractHistory-2024-2025.csv",
 }
 
 OTTAWA_RAW_DIR = ROOT / "data/raw/ottawa_contracts_awarded"
 OTTAWA_PROCESSED = ROOT / "data/processed/ottawa_contracts_awarded.jsonl"
 OTTAWA_LOG = ROOT / "data/processed/ottawa_extraction.jsonl"
+
+OTTAWA_HISTORICAL_RAW_DIR = ROOT / "data/raw/ottawa_historical_contracts"
+OTTAWA_HISTORICAL_PROCESSED = ROOT / "data/processed/ottawa_historical_contracts.jsonl"
+OTTAWA_HISTORICAL_LOG = ROOT / "data/processed/ottawa_historical_extraction.jsonl"
 
 
 def _record_cap(source_id: str) -> int:
@@ -77,6 +83,22 @@ def load_ottawa() -> int:
     return len(records)
 
 
+def load_ottawa_historical() -> int:
+    """Deterministic (no-network, no-model) openpyxl extraction of the
+    2020-2022 Excel workbooks -- a separate source_id from the PDF-based
+    ottawa_contracts_awarded; see sources/ottawa_historical_contracts/source.yaml
+    for why, and docs/DECISIONS.md for the scope-expansion ADR."""
+    if not OTTAWA_HISTORICAL_RAW_DIR.exists() or not any(OTTAWA_HISTORICAL_RAW_DIR.rglob("*.xlsx")):
+        print(f"  [skip] no Ottawa historical raw workbooks found under {OTTAWA_HISTORICAL_RAW_DIR}")
+        return 0
+    records = extract_ottawa_historical(
+        OTTAWA_HISTORICAL_RAW_DIR, OTTAWA_HISTORICAL_PROCESSED, OTTAWA_HISTORICAL_LOG,
+        limit=_record_cap("ottawa_historical_contracts"),
+    )
+    load_releases(DATABASE, records)
+    return len(records)
+
+
 def main() -> None:
     if DATABASE.exists():
         print(f"removing existing {DATABASE}")
@@ -85,7 +107,7 @@ def main() -> None:
     with duckdb.connect(str(DATABASE)) as connection:
         connection.execute("CREATE TABLE IF NOT EXISTS releases (source_id VARCHAR, ocid VARCHAR, record JSON)")
 
-    print("loading CSV-mapped sources (federal, canadabuys, ontario_vor)...")
+    print("loading CSV-mapped sources (federal, canadabuys x2, ontario_vor)...")
     counts = load_csv_sources()
     for source_id, count in counts.items():
         print(f"  {source_id}: {count} records")
@@ -93,6 +115,10 @@ def main() -> None:
     print("extracting and loading Ottawa (deterministic PDF parse, no network, no model)...")
     ottawa_count = load_ottawa()
     print(f"  ottawa_contracts_awarded: {ottawa_count} records")
+
+    print("extracting and loading Ottawa historical 2020-2022 (deterministic Excel parse, no network, no model)...")
+    ottawa_historical_count = load_ottawa_historical()
+    print(f"  ottawa_historical_contracts: {ottawa_historical_count} records")
 
     with duckdb.connect(str(DATABASE)) as connection:
         total = connection.execute("SELECT COUNT(*) FROM releases").fetchone()[0]

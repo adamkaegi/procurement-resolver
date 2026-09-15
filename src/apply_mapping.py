@@ -36,6 +36,22 @@ def _release(row: dict[str, str], config: dict[str, Any], raw_ref: str) -> dict[
             amount = _float(row, "totalContractValue-valeurTotaleContrat")
         description, classification = _value(row, "awardDescription-descriptionAttribution-eng") or _value(row, "title-titre-eng"), _value(row, "unspsc-unspsc") or _value(row, "gsin-nibs")
         start, end = _value(row, "contractStartDate-contratDateDebut"), _value(row, "contractEndDate-dateFinContrat")
+    elif source_id == "canadabuys_contract_history":
+        # Same publisher, same eng/fra field-naming convention as
+        # canadabuys_award_notices, but a distinct dataset (full contract
+        # history vs. award-notice publications) -- see source.yaml.
+        ocid = _value(row, "solicitationNumber-numeroSollicitation") or _value(row, "referenceNumber-numeroReference")
+        release_id = _value(row, "referenceNumber-numeroReference")
+        date = _value(row, "contractAwardDate-dateAttributionContrat") or _value(row, "publicationDate-datePublication")
+        buyer_name, vendor = _value(row, "contractingEntityName-nomEntitContractante-eng"), (
+            _value(row, "supplierLegalName-nomLegalFournisseur-eng") or _value(row, "supplierOperatingName-nomCommercialFournisseur-eng")
+        )
+        amount = _float(row, "contractAmount-montantContrat")
+        if amount < 0:
+            amount = _float(row, "totalContractValue-valeurTotaleContrat")
+        description = _value(row, "tenderDescription-descriptionAppelOffres-eng") or _value(row, "title-titre-eng")
+        classification = _value(row, "unspsc") or _value(row, "gsin-nibs")
+        start, end = _value(row, "contractStartDate-contratDateDebut"), _value(row, "contractEndDate-dateFinContrat")
     else:
         ocid, release_id = _value(row, "Vendor of Record (VOR) Number"), _value(row, "Vendor of Record (VOR) Number")
         date = _value(row, "Start Date")
