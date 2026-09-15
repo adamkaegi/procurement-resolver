@@ -19,22 +19,35 @@ def _float(row: dict[str, str], key: str) -> float:
 
 
 def _release(row: dict[str, str], config: dict[str, Any], raw_ref: str) -> dict[str, Any]:
+    # Deliberately hardcoded per source_id rather than driven generically by
+    # config["mappings"] (source_field/transform) -- a disclosed trade-off,
+    # not an oversight. See docs/DECISIONS.md, "Phase 1 mapping.yaml is
+    # documentation, not executable config", for the reasoning and the
+    # human decision needed before that changes.
     source_id = config["source_id"]
     now = datetime.now(timezone.utc).isoformat()
     field_origins = {item["canonical"]: item.get("source_field", item.get("source_fields")) for item in config["mappings"]}
     if source_id == "federal_contracts":
-        ocid, release_id, date = _value(row, "procurement_id"), _value(row, "reference_number"), _value(row, "contract_date")
-        buyer_name, vendor, amount, description, classification = _value(row, "buyer_name"), _value(row, "vendor_name"), _float(row, "contract_value"), _value(row, "description_en"), _value(row, "commodity_code")
+        ocid = _value(row, "procurement_id")
+        release_id = _value(row, "reference_number")
+        date = _value(row, "contract_date")
+        buyer_name = _value(row, "buyer_name")
+        vendor = _value(row, "vendor_name")
+        amount = _float(row, "contract_value")
+        description = _value(row, "description_en")
+        classification = _value(row, "commodity_code")
         start, end = _value(row, "contract_period_start"), _value(row, "delivery_date")
     elif source_id == "canadabuys_award_notices":
         ocid = _value(row, "solicitationNumber-numeroSollicitation") or _value(row, "referenceNumber-numeroReference")
         release_id = _value(row, "contractNumber-numeroContrat") or _value(row, "referenceNumber-numeroReference")
         date = _value(row, "contractAwardDate-dateAttributionContrat") or _value(row, "publicationDate-datePublication")
-        buyer_name, vendor = _value(row, "contractingEntityName-nomEntitContractante-eng"), _value(row, "supplierLegalName-nomLegalFournisseur-eng")
+        buyer_name = _value(row, "contractingEntityName-nomEntitContractante-eng")
+        vendor = _value(row, "supplierLegalName-nomLegalFournisseur-eng")
         amount = _float(row, "contractAmount-montantContrat")
         if amount < 0:
             amount = _float(row, "totalContractValue-valeurTotaleContrat")
-        description, classification = _value(row, "awardDescription-descriptionAttribution-eng") or _value(row, "title-titre-eng"), _value(row, "unspsc-unspsc") or _value(row, "gsin-nibs")
+        description = _value(row, "awardDescription-descriptionAttribution-eng") or _value(row, "title-titre-eng")
+        classification = _value(row, "unspsc-unspsc") or _value(row, "gsin-nibs")
         start, end = _value(row, "contractStartDate-contratDateDebut"), _value(row, "contractEndDate-dateFinContrat")
     elif source_id == "canadabuys_contract_history":
         # Same publisher, same eng/fra field-naming convention as
@@ -43,8 +56,10 @@ def _release(row: dict[str, str], config: dict[str, Any], raw_ref: str) -> dict[
         ocid = _value(row, "solicitationNumber-numeroSollicitation") or _value(row, "referenceNumber-numeroReference")
         release_id = _value(row, "referenceNumber-numeroReference")
         date = _value(row, "contractAwardDate-dateAttributionContrat") or _value(row, "publicationDate-datePublication")
-        buyer_name, vendor = _value(row, "contractingEntityName-nomEntitContractante-eng"), (
-            _value(row, "supplierLegalName-nomLegalFournisseur-eng") or _value(row, "supplierOperatingName-nomCommercialFournisseur-eng")
+        buyer_name = _value(row, "contractingEntityName-nomEntitContractante-eng")
+        vendor = (
+            _value(row, "supplierLegalName-nomLegalFournisseur-eng")
+            or _value(row, "supplierOperatingName-nomCommercialFournisseur-eng")
         )
         amount = _float(row, "contractAmount-montantContrat")
         if amount < 0:
@@ -53,7 +68,10 @@ def _release(row: dict[str, str], config: dict[str, Any], raw_ref: str) -> dict[
         classification = _value(row, "unspsc") or _value(row, "gsin-nibs")
         start, end = _value(row, "contractStartDate-contratDateDebut"), _value(row, "contractEndDate-dateFinContrat")
     else:
-        ocid, release_id = _value(row, "Vendor of Record (VOR) Number"), _value(row, "Vendor of Record (VOR) Number")
+        # Catch-all: currently reached only by ontario_vor, the one
+        # remaining CSV-mapped source not named above.
+        ocid = _value(row, "Vendor of Record (VOR) Number")
+        release_id = ocid
         date = _value(row, "Start Date")
         buyer_name = config.get("buyer_name", "Ontario Government")
         vendor = _value(row, "Qualified Vendor")
@@ -90,6 +108,15 @@ def _release(row: dict[str, str], config: dict[str, Any], raw_ref: str) -> dict[
     return release
 
 
+def _is_usable_row(row: dict[str, str], config: dict[str, Any]) -> bool:
+    """False for blank rows and, when the source config names one
+    (e.g. ontario_vor's VOR number), rows missing their required field --
+    footer/note rows that aren't vendors (see docs/FAILURES.md #12)."""
+    has_any_value = any(value.strip() for value in row.values() if value)
+    required_field = config.get("required_source_field")
+    return has_any_value and (not required_field or _value(row, required_field))
+
+
 def ingest_csv(path: Path, config_path: Path, limit: int = 5000) -> list[dict[str, Any]]:
     config = yaml.safe_load(config_path.read_text())
     with path.open(newline="", encoding=config.get("encoding", "utf-8-sig")) as stream:
@@ -100,8 +127,7 @@ def ingest_csv(path: Path, config_path: Path, limit: int = 5000) -> list[dict[st
         rows = [
             {key.strip(): value for key, value in row.items() if key is not None}
             for row in reader
-            if any(value.strip() for value in row.values() if value)
-            and (not config.get("required_source_field") or _value(row, config["required_source_field"]))
+            if _is_usable_row(row, config)
         ]
         releases = [_release(row, config, str(path)) for row in rows[:limit]]
     validate_releases(releases)
