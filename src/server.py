@@ -9,7 +9,7 @@ Run directly for local testing:
     uv run python -m src.server
 
 Or point an MCP client (e.g. Claude Desktop) at it via stdio -- see
-docs/RUNBOOK.md for the client config snippet.
+docs/AGENT_DEMO.md for the client config snippet and a scripted demo.
 """
 
 from pathlib import Path
