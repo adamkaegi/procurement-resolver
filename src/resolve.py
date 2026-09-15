@@ -83,9 +83,8 @@ def rank_candidates(name: str, candidates: list[dict[str, str]], limit: int = 10
 
 
 def evaluate_pairs(pair_path: Path, output_path: Path) -> dict[str, Any]:
-    rows: list[dict[str, str]]
     with pair_path.open(newline="") as stream:
-        rows = list(csv.DictReader(stream))
+        rows: list[dict[str, str]] = list(csv.DictReader(stream))
     grouped: dict[str, dict[str, int]] = defaultdict(lambda: {"tp": 0, "fp": 0, "fn": 0, "tn": 0, "abstained": 0, "total": 0})
     adjudicated = 0
     for row in rows:
@@ -134,51 +133,73 @@ def _entity_id(normalized: str) -> str:
     return "ent_" + hashlib.sha1(normalized.encode()).hexdigest()[:16]
 
 
+def _collect_vendor_occurrences(connection: duckdb.DuckDBPyConnection) -> dict[str, list[tuple[str, str]]]:
+    """Every (source_id, verbatim vendor name) occurrence across all releases,
+    grouped by normalized name -- one group becomes one resolved entity."""
+    vendors: dict[str, list[tuple[str, str]]] = defaultdict(list)
+    for source_id, raw_record in connection.execute("SELECT source_id, record FROM releases").fetchall():
+        record = json.loads(raw_record)
+        for award in record.get("awards", []):
+            for supplier in award.get("suppliers", []):
+                name = supplier.get("name", "")
+                if name:
+                    vendors[normalize_vendor(name)].append((source_id, name))
+    return vendors
+
+
+def _reset_resolution_tables(connection: duckdb.DuckDBPyConnection) -> None:
+    connection.execute("DROP TABLE IF EXISTS entity_link")
+    connection.execute("DROP TABLE IF EXISTS entity")
+    connection.execute("DROP TABLE IF EXISTS coverage")
+    connection.execute("CREATE TABLE entity (entity_id VARCHAR, canonical_name VARCHAR, name_variants JSON, registry_id VARCHAR, resolution_mode VARCHAR)")
+    connection.execute("CREATE TABLE entity_link (entity_id VARCHAR, source_id VARCHAR, source_vendor_name VARCHAR, confidence DOUBLE, method VARCHAR, evidence JSON)")
+    connection.execute("CREATE TABLE coverage (source_id VARCHAR, jurisdiction VARCHAR, date_range_start VARCHAR, date_range_end VARCHAR, value_threshold DOUBLE, record_count INTEGER, known_gaps JSON)")
+
+
+def _write_entities_and_links(connection: duckdb.DuckDBPyConnection, vendors: dict[str, list[tuple[str, str]]]) -> None:
+    """One entity per normalized-name group; one entity_link row per
+    (source, verbatim name) occurrence, all at confidence 1.0/"normalized" --
+    this is exact-normalized clustering only. Fuzzy/adjudicated candidates
+    are scored live by rank_candidates, not persisted here."""
+    for normalized, links in vendors.items():
+        entity_id = _entity_id(normalized)
+        canonical_name = links[0][1]
+        variants = sorted({name for _, name in links})
+        connection.execute("INSERT INTO entity VALUES (?, ?, ?, NULL, ?)", [entity_id, canonical_name, json.dumps(variants), "vendor_to_vendor"])
+        for source_id, name in links:
+            evidence = {"normalized_name": normalized, "blocking": "exact_normalized"}
+            connection.execute("INSERT INTO entity_link VALUES (?, ?, ?, ?, ?, ?)", [entity_id, source_id, name, 1.0, "normalized", json.dumps(evidence)])
+
+
+def _write_coverage(connection: duckdb.DuckDBPyConnection, project_root: Path) -> None:
+    for source_file in sorted((project_root / "sources").glob("*/source.yaml")):
+        config = yaml.safe_load(source_file.read_text())
+        if config.get("role") == "schema_ground_truth":
+            # e.g. canadabuys_ocds_pilot: a Phase 0 validation fixture, never
+            # ingested into releases. A coverage row for it would misleadingly
+            # read as a source that failed to load 0 records.
+            continue
+        count = connection.execute("SELECT COUNT(*) FROM releases WHERE source_id = ?", [config["source_id"]]).fetchone()[0]
+        date_start, date_end = connection.execute(
+            "SELECT MIN(TRY_CAST(json_extract_string(record, '$.date') AS TIMESTAMP)), "
+            "MAX(TRY_CAST(json_extract_string(record, '$.date') AS TIMESTAMP)) "
+            "FROM releases WHERE source_id = ?",
+            [config["source_id"]],
+        ).fetchone()
+        known_gaps = config.get("known_gaps") or [config.get("notes", "")]
+        connection.execute(
+            "INSERT INTO coverage VALUES (?, ?, ?, ?, ?, ?, ?)",
+            [config["source_id"], config["jurisdiction"], str(date_start) if date_start else None,
+             str(date_end) if date_end else None, config.get("value_threshold"), count, json.dumps(known_gaps)],
+        )
+
+
 def build_entity_store(database: Path, project_root: Path) -> None:
     with duckdb.connect(str(database)) as connection:
-        records = connection.execute("SELECT source_id, record FROM releases").fetchall()
-        vendors: dict[str, list[tuple[str, str]]] = defaultdict(list)
-        for source_id, raw_record in records:
-            record = json.loads(raw_record)
-            for award in record.get("awards", []):
-                for supplier in award.get("suppliers", []):
-                    name = supplier.get("name", "")
-                    if name:
-                        vendors[normalize_vendor(name)].append((source_id, name))
-        connection.execute("DROP TABLE IF EXISTS entity_link")
-        connection.execute("DROP TABLE IF EXISTS entity")
-        connection.execute("DROP TABLE IF EXISTS coverage")
-        connection.execute("CREATE TABLE entity (entity_id VARCHAR, canonical_name VARCHAR, name_variants JSON, registry_id VARCHAR, resolution_mode VARCHAR)")
-        connection.execute("CREATE TABLE entity_link (entity_id VARCHAR, source_id VARCHAR, source_vendor_name VARCHAR, confidence DOUBLE, method VARCHAR, evidence JSON)")
-        connection.execute("CREATE TABLE coverage (source_id VARCHAR, jurisdiction VARCHAR, date_range_start VARCHAR, date_range_end VARCHAR, value_threshold DOUBLE, record_count INTEGER, known_gaps JSON)")
-        for normalized, links in vendors.items():
-            entity_id = _entity_id(normalized)
-            canonical_name = links[0][1]
-            variants = sorted({name for _, name in links})
-            connection.execute("INSERT INTO entity VALUES (?, ?, ?, NULL, ?)", [entity_id, canonical_name, json.dumps(variants), "vendor_to_vendor"])
-            for source_id, name in links:
-                evidence = {"normalized_name": normalized, "blocking": "exact_normalized"}
-                connection.execute("INSERT INTO entity_link VALUES (?, ?, ?, ?, ?, ?)", [entity_id, source_id, name, 1.0, "normalized", json.dumps(evidence)])
-        for source_file in sorted((project_root / "sources").glob("*/source.yaml")):
-            config = yaml.safe_load(source_file.read_text())
-            if config.get("role") == "schema_ground_truth":
-                # e.g. canadabuys_ocds_pilot: a Phase 0 validation fixture, never
-                # ingested into releases. A coverage row for it would misleadingly
-                # read as a source that failed to load 0 records.
-                continue
-            count = connection.execute("SELECT COUNT(*) FROM releases WHERE source_id = ?", [config["source_id"]]).fetchone()[0]
-            date_start, date_end = connection.execute(
-                "SELECT MIN(TRY_CAST(json_extract_string(record, '$.date') AS TIMESTAMP)), "
-                "MAX(TRY_CAST(json_extract_string(record, '$.date') AS TIMESTAMP)) "
-                "FROM releases WHERE source_id = ?",
-                [config["source_id"]],
-            ).fetchone()
-            known_gaps = config.get("known_gaps") or [config.get("notes", "")]
-            connection.execute(
-                "INSERT INTO coverage VALUES (?, ?, ?, ?, ?, ?, ?)",
-                [config["source_id"], config["jurisdiction"], str(date_start) if date_start else None,
-                 str(date_end) if date_end else None, config.get("value_threshold"), count, json.dumps(known_gaps)],
-            )
+        vendors = _collect_vendor_occurrences(connection)
+        _reset_resolution_tables(connection)
+        _write_entities_and_links(connection, vendors)
+        _write_coverage(connection, project_root)
 
 
 def main() -> None:
