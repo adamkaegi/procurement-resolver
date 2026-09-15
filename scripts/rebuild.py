@@ -15,7 +15,9 @@ Usage:
 
 import json
 import sys
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -71,16 +73,34 @@ def load_csv_sources() -> dict[str, int]:
     return counts
 
 
+def _load_document_source(
+    source_id: str, raw_dir: Path, glob_pattern: str, recursive: bool,
+    extractor: Callable[[Path, Path, Path, int], list[dict[str, Any]]],
+    processed_path: Path, log_path: Path,
+) -> int:
+    """Shared shape behind load_ottawa/load_ottawa_historical: skip loudly
+    (not an error -- see each caller's docstring) if the raw directory has
+    nothing matching, else run the source's own deterministic extractor and
+    load the result. `recursive` mirrors whether that source's raw files
+    were archived flat (ottawa_contracts_awarded) or under fetch.py's
+    timestamped-subdirectory convention (ottawa_historical_contracts)."""
+    finder = raw_dir.rglob if recursive else raw_dir.glob
+    if not raw_dir.exists() or not any(finder(glob_pattern)):
+        print(f"  [skip] no raw files found under {raw_dir} matching {glob_pattern}")
+        return 0
+    records = extractor(raw_dir, processed_path, log_path, _record_cap(source_id))
+    load_releases(DATABASE, records)
+    return len(records)
+
+
 def load_ottawa() -> int:
     """Re-run the deterministic (no-network, no-model) PDF extraction from raw,
     then load the resulting canonical records. Licence verified 2026-09-10;
     see sources/ottawa_contracts_awarded/source.yaml and docs/BLOCKED.md."""
-    if not OTTAWA_RAW_DIR.exists() or not any(OTTAWA_RAW_DIR.glob("*.pdf")):
-        print(f"  [skip] no Ottawa raw PDFs found under {OTTAWA_RAW_DIR}")
-        return 0
-    records = extract_directory(OTTAWA_RAW_DIR, OTTAWA_PROCESSED, OTTAWA_LOG, limit=_record_cap("ottawa_contracts_awarded"))
-    load_releases(DATABASE, records)
-    return len(records)
+    return _load_document_source(
+        "ottawa_contracts_awarded", OTTAWA_RAW_DIR, "*.pdf", recursive=False,
+        extractor=extract_directory, processed_path=OTTAWA_PROCESSED, log_path=OTTAWA_LOG,
+    )
 
 
 def load_ottawa_historical() -> int:
@@ -88,15 +108,10 @@ def load_ottawa_historical() -> int:
     2020-2022 Excel workbooks -- a separate source_id from the PDF-based
     ottawa_contracts_awarded; see sources/ottawa_historical_contracts/source.yaml
     for why, and docs/DECISIONS.md for the scope-expansion ADR."""
-    if not OTTAWA_HISTORICAL_RAW_DIR.exists() or not any(OTTAWA_HISTORICAL_RAW_DIR.rglob("*.xlsx")):
-        print(f"  [skip] no Ottawa historical raw workbooks found under {OTTAWA_HISTORICAL_RAW_DIR}")
-        return 0
-    records = extract_ottawa_historical(
-        OTTAWA_HISTORICAL_RAW_DIR, OTTAWA_HISTORICAL_PROCESSED, OTTAWA_HISTORICAL_LOG,
-        limit=_record_cap("ottawa_historical_contracts"),
+    return _load_document_source(
+        "ottawa_historical_contracts", OTTAWA_HISTORICAL_RAW_DIR, "*.xlsx", recursive=True,
+        extractor=extract_ottawa_historical, processed_path=OTTAWA_HISTORICAL_PROCESSED, log_path=OTTAWA_HISTORICAL_LOG,
     )
-    load_releases(DATABASE, records)
-    return len(records)
 
 
 def main() -> None:
