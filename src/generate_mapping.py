@@ -67,15 +67,20 @@ def propose_mapping(source_id: str, fields: list[str]) -> dict[str, Any]:
         hints = FIELD_HINTS.get(canonical, ())
         matches = [field for field in hints if field in fields]
         if matches:
-            source_fields = matches if len(matches) > 1 else matches[0]
-            item: dict[str, Any] = {
+            item = {
                 "canonical": canonical,
                 "disposition": "mapped" if len(matches) == 1 else "derived",
                 "transform": _transform_for(canonical, matches[0]),
                 "confidence": "high" if len(matches) == 1 else "medium",
                 "reasoning": f"Matched published field name for {canonical}.",
             }
-            item["source_fields" if isinstance(source_fields, list) else "source_field"] = source_fields
+            # spec Part 7's output contract: a single match is "mapped" with
+            # one source_field; more than one candidate is "derived" with a
+            # source_fields list (most-preferred first).
+            if len(matches) > 1:
+                item["source_fields"] = matches
+            else:
+                item["source_field"] = matches[0]
         else:
             item = {
                 "canonical": canonical,
@@ -111,6 +116,9 @@ def validate_mapping(mapping: dict[str, Any], fields: list[str]) -> list[str]:
             errors.append(f"missing reasoning for {canonical}")
         if not is_registered(item.get("transform")):
             errors.append(f"unknown transform for {canonical}: {item.get('transform')}")
+        # "derived" items carry source_fields (a list); "mapped" items carry
+        # source_field (a single string); "unmapped" items carry neither, so
+        # this falls back to [None], which the None-check below skips.
         source_fields = item.get("source_fields", [item.get("source_field")])
         for source_field in source_fields:
             if source_field is not None and source_field not in fields:
