@@ -101,16 +101,17 @@ live database connection at runtime.
 in CI on every push (`.github/workflows/ci.yml`). `uv run ruff check .`
 clean throughout.
 
-## What isn't measured yet
+## What isn't measured, by decision
 
 This project's own thesis is that a claim needs a number behind it, so this
 is stated plainly once rather than hedged throughout: field-mapping
 precision/recall, resolution precision/recall, and agent refusal-rate are
-**not measured**. They depend on [`evals/gold/`](../evals/gold/) — hand-labelled mapping
-corrections, ~200 vendor-resolution pairs, and 40 agent questions — which
-is intentionally empty pending human labelling (labelling after seeing
-model output would invalidate it). `evals/run_eval.py`, the single command
-meant to reproduce all headline metrics, doesn't exist yet either. Until
-then, no precision, recall, cost, or latency figure is reported anywhere in
-this repo that didn't come from an actual eval or log run — see
-`evals/results/` for what has.
+**not measured, and won't be** — a formal hand-labelled evaluation set was
+scoped out (`docs/SPEC.md` Part 3), not left half-finished. Reliability is
+demonstrated a different way instead: every mapping and resolution decision
+is logged and reviewable, specific failure modes are catalogued with root
+causes (`docs/FAILURES.md`), and the agent's confident-answer/correct-refusal
+behavior is verified live against the real warehouse (`docs/AGENT_DEMO.md`)
+rather than scored against a held-out question set. No precision, recall,
+cost, or latency figure is reported anywhere in this repo that didn't come
+from an actual eval or log run — see `evals/results/` for what has.

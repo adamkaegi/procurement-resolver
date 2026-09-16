@@ -1,6 +1,6 @@
 """MCP server exposing the five typed procurement-resolution tools (spec Part 9).
 
-No run_sql tool (CLAUDE.md rule 5). Every tool call opens a fresh read-only
+No run_sql tool (CLAUDE.md rule 4). Every tool call opens a fresh read-only
 DuckDB connection against data/warehouse.duckdb -- this server never writes
 to the warehouse, and coexists with other local DuckDB clients (e.g. the
 duckdb CLI) that might have it open at the same time.

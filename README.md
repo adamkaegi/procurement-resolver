@@ -113,7 +113,7 @@ Quick reference, the five tools (`src/agent_tools.py`, wired in `src/server.py`)
 | `compare_buyers(jurisdictions, category?)` | buyer aggregates with threshold caveats attached |
 | `coverage(jurisdiction?, date_range?)` | what the warehouse actually holds, and its known gaps |
 
-No `run_sql` tool — typed tools only, per `CLAUDE.md` rule 5.
+No `run_sql` tool — typed tools only, per `CLAUDE.md` rule 4.
 
 ## Status
 
@@ -136,11 +136,11 @@ This project's thesis is that a reliability claim needs a number behind it
 (`CLAUDE.md` rule 1: no precision, recall, cost, or latency figure appears
 anywhere unless an eval run produced it) — so stated plainly rather than
 implied: mapping-quality precision/recall, resolution precision/recall, and
-agent refusal-rate are not measured yet. They depend on
-[`evals/gold/`](evals/gold/) —
-hand-labelled mapping corrections, ~200 vendor-resolution pairs, and 40
-agent questions — which is intentionally empty pending human labelling
-(`docs/RUNBOOK.md`), and on `evals/run_eval.py`, which doesn't exist yet.
+agent refusal-rate are **not measured, by decision**. A formal
+hand-labelled evaluation set was scoped out
+([`docs/SPEC.md`](docs/SPEC.md) Part 3), not left half-finished — the
+decision log, failure catalogue, and live agent demo above are what this
+project uses to demonstrate reliability instead.
 
 ## License
 

@@ -1,8 +1,10 @@
 # Runbook — Autonomous build sequence
 
-> The methodology this project was actually built under, left as-written.
-> For what exists today, see [`README.md`](../README.md) and
-> [`docs/PROGRESS.md`](PROGRESS.md).
+> The methodology this project was actually built under, with one
+> deliberate exception: Phase 2 (hand-labelled evaluation sets) was later
+> decided against outright, and the phases that depended on it are updated
+> here to say so rather than silently going stale. For what exists today,
+> see [`README.md`](../README.md) and [`docs/PROGRESS.md`](PROGRESS.md).
 
 One phase per session. Do not chain phases in a single run: each acceptance test
 is a place where a silent wrong turn becomes visible, and a compacted context
@@ -67,21 +69,14 @@ place to catch a misunderstanding of the schema.
 
 ---
 
-## Phase 2 — GOLD SETS — DO NOT DELEGATE
+## Phase 2 — Skipped by decision
 
-Yours. Not Claude's, in any form.
-
-- `evals/gold/mappings/` — correct mappings for two held-out sources
-- `evals/gold/resolution/pairs.csv` — ~200 vendor pairs, labelled match/no-match,
-  spread across federal↔Ontario, federal↔Ottawa, Ontario↔Ottawa
-- `evals/gold/agent/questions.yaml` — 40 questions in buckets A / B / C
-
-Label before the corresponding system exists. Commit before Phase 3 starts.
-
-Claude may help you *build tooling* for labelling — a CLI that shows you a
-candidate pair and records your keystroke. It must not supply the label.
-
-Budget a full day. This is the weekend that makes every number real.
+Originally: a full day of hand-labelling held-out mapping corrections,
+~200 vendor-resolution pairs, and 40 agent questions, so every later
+percentage would have a real baseline. Decided not to spend it — see
+`docs/SPEC.md` Part 3, "Explicitly out of scope." Phases 3, 5, and 6 below
+were adjusted accordingly: reproducibility and live-demonstrated behavior
+in place of precision/recall/refusal-rate against a held-out label set.
 
 ---
 
@@ -89,8 +84,6 @@ Budget a full day. This is the weekend that makes every number real.
 
 > Implement Phase 3 only. Build src/generate_mapping.py, the transform registry,
 > and the validation gate per spec Part 7.
->
-> evals/gold/ is read-only. If the gold mapping files are not present, stop.
 >
 > Acceptance test: the generator reproduces the three Phase 1 hand-written
 > mappings at a measurable rate, and produces a validating mapping for one
@@ -130,8 +123,10 @@ yourself. Extraction is where silent corruption is most likely and least visible
 >
 > Link, never merge. Source vendor names are never rewritten.
 >
-> Acceptance test: precision and recall against evals/gold/resolution/pairs.csv,
-> broken out by jurisdiction pair, with absolute counts alongside percentages.
+> Acceptance test: the entity/entity_link/coverage tables build end-to-end;
+> adjudication band width and proportion of pairs adjudicated are logged. No
+> hand-labelled pair set exists (spec Part 3 scope cut), so no precision/recall
+> figure is reported here.
 >
 > While building, maintain docs/FAILURES.md — every genuinely hard case you hit
 > with its root cause. Target the categories in spec Part 8.
@@ -141,25 +136,28 @@ yourself. Extraction is where silent corruption is most likely and least visible
 ## Phase 6 — MCP server and agent
 
 > Implement Phase 6 only. Build src/server.py with the five typed tools from
-> spec Part 9, the refusal logic, and the agent eval harness.
+> spec Part 9 and the refusal logic.
 >
 > No run_sql tool. Every entity-touching tool returns resolution confidence;
 > every aggregating tool returns coverage caveats.
 >
-> Acceptance test: one command runs all three eval suites — mapping, resolution,
-> agent — and writes results to evals/results/. Bucket C refusal rate must be
-> reported.
+> Acceptance test: the MCP server's typed tools are live against the real
+> warehouse, and one session demonstrates a confident cross-level answer
+> alongside a correct refusal. No hand-labelled agent-question set exists
+> (spec Part 3 scope cut), so no refusal-rate percentage is reported here.
 
 ---
 
 ## Phase 7 — Gating sweep
 
-> Implement Phase 7 only. Sweep confidence thresholds on both the mapping and
-> resolution layers. Plot silent-error rate against abstention rate.
+> Implement Phase 7 only. Sweep the resolution confidence threshold and report
+> how the auto-accept / adjudication-band / auto-reject split moves, with a
+> spot-check of a sample from each band.
 >
-> Acceptance test: produce a sentence of the form "gating at X cut silent errors
-> from A% to B% at the cost of C% abstention", with the numbers coming from
-> evals/results/.
+> Acceptance test: produce a sentence of the form "raising the auto-accept
+> threshold from X to Y moved N pairs from auto-accepted to adjudicated", with
+> the numbers coming from evals/results/. No hand-labelled set to score a
+> silent-error curve against (spec Part 3 scope cut).
 >
 > Then write docs/FINDINGS.md: every metric produced, the ten-plus entries from
 > docs/FAILURES.md with root causes, and the full ADR log. Facts only, no

@@ -2,7 +2,7 @@
 
 Every function here takes a read-only DuckDB connection and returns a
 pydantic model -- no free-text SQL is ever accepted from a caller (no
-run_sql, per CLAUDE.md rule 5 / spec Part 9). src/server.py wires these as
+run_sql, per CLAUDE.md rule 4 / spec Part 9). src/server.py wires these as
 MCP tools; this module has no MCP dependency so it's testable on its own.
 
 Refusal logic lives here, not in the LLM: cross_level_exposure and

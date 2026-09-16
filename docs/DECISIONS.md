@@ -97,7 +97,7 @@ thing to understand about how this pipeline actually runs.
 ### Licence verified via the City's own open-data catalogue before ingesting
 
 - Context: the City of Ottawa's Delegation of Authority reports needed a
-  confirmed open licence before ingestion (CLAUDE.md rule 4). The official
+  confirmed open licence before ingestion (CLAUDE.md rule 3). The official
   city site returned an anti-bot challenge; the only reachable host serving
   the actual PDFs, `pub-ottawa.escribemeetings.com`, is a third-party
   meeting-document surface that shows no licence of its own.
@@ -219,7 +219,7 @@ thing to understand about how this pipeline actually runs.
   no accompanying open-data export.
 - Alternative rejected: approximating a second Ontario source from a
   different data shape, or fabricating one, to make jurisdiction coverage
-  look more even. Per CLAUDE.md rule 4, no source proceeds without live
+  look more even. Per CLAUDE.md rule 3, no source proceeds without live
   verification and a confirmed licence.
 - Consequence: 6 sources across the same 3 jurisdictions (federal now
   three-sourced, Ontario still single-sourced, Ottawa two-sourced by

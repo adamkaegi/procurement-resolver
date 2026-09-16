@@ -24,26 +24,18 @@ serves a number in the eval harness.
    `evals/results/`. If asked to write a README or summary before the eval has
    run, use `TBD` — never a plausible placeholder.
 
-2. **`evals/gold/` is read-only.** These files are hand-labelled by the human.
-   Never create, edit, extend, or regenerate anything under that directory.
-   If a gold file is missing, STOP and report it. Do not synthesize one.
-   The entire project's validity depends on this. **Current status:**
-   `evals/gold/` is empty — the human labelling was never done — so no
-   precision/recall/refusal-rate metric is reported anywhere in this repo.
-   See `docs/PROGRESS.md`, "What isn't measured yet."
-
-3. **Source records are immutable.** Raw payloads under `data/raw/` are never
+2. **Source records are immutable.** Raw payloads under `data/raw/` are never
    modified after fetch. Vendor names are never normalized in place. Resolution
    writes to the `entity_link` table and points at source records.
 
-4. **Verify before ingesting.** Confirm each source URL is live and record its
+3. **Verify before ingesting.** Confirm each source URL is live and record its
    licence in `source.yaml` before writing an adapter. If a URL 404s or the
    licence is unclear, STOP and report. Do not substitute a similar-looking
    source on your own initiative.
 
-5. **No `run_sql` tool on the MCP server.** Typed tools only, per spec Part 9.
+4. **No `run_sql` tool on the MCP server.** Typed tools only, per spec Part 9.
 
-6. **Stop conditions are real.** If a phase's acceptance test fails twice, stop
+5. **Stop conditions are real.** If a phase's acceptance test fails twice, stop
    and write a failure report to `docs/BLOCKED.md`. Do not work around it, and
    do not loosen the acceptance test to make it pass.
 

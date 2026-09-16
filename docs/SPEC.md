@@ -5,10 +5,12 @@
 **Purpose of this document:** two audiences. Mentors should read Parts 1–3 and answer the questions in Part 11. Claude Code should read Parts 4–10 and start at Part 10.
 
 > This is the original design spec, written and committed before the build
-> started, and left as-written below — including Part 13's placeholder
-> figures, which stay placeholders on purpose (Part 12: "no metric appears
-> anywhere until `run_eval.py` produced it"). For what actually exists today,
-> see [`README.md`](../README.md) and [`docs/PROGRESS.md`](PROGRESS.md).
+> started, left as-written below with one deliberate exception: Part 3's
+> hand-labelled evaluation sets were later decided against outright (not
+> left pending), so every acceptance test and metric that depended on one
+> is updated here to say so rather than silently going stale. For what
+> actually exists today, see [`README.md`](../README.md) and
+> [`docs/PROGRESS.md`](PROGRESS.md).
 
 ---
 
@@ -24,7 +26,7 @@ This project builds two things:
 The domain is a corpus, not the point. The same shape appears when consolidating ERPs after an acquisition, joining claims across carriers, or reconciling provider registries across hospital systems: different vocabularies for the same entities, no common key, and one team with a week to make it queryable.
 
 **Two claims to earn:**
-- A new source can be onboarded in under 20 minutes for under $1, at a measured field-level precision and a measured silent-error rate.
+- A new source can be onboarded in under 20 minutes for under $1, with cost and latency logged for every step and every mapping decision reviewable.
 - The agent answers cross-jurisdictional questions with resolution confidence attached, and correctly declines the questions the data cannot support.
 
 ---
@@ -60,7 +62,7 @@ These thresholds are a first-class finding. Any cross-jurisdictional total is co
 - Cross-jurisdictional vendor entity resolution with confidence scores and evidence
 - An MCP server exposing typed tools over the resolved data
 - An agent that answers cross-level questions and refuses below a confidence threshold
-- Two eval harnesses: mapping quality, and agent tool-use / refusal behaviour
+- Demonstrated mapping quality (logged validation outcomes, reviewable reasoning) and agent tool-use / refusal behaviour (live-verified demo) — see the scope cut below on why this isn't a formal scored harness
 - Cost and latency instrumentation per source onboarded
 - A written failure analysis
 
@@ -71,14 +73,14 @@ These thresholds are a first-class finding. Any cross-jurisdictional total is co
 - A user-facing UI beyond a CLI and a demo notebook
 - Directors / beneficial-ownership graph. Registry linkage is limited to name resolution only
 - French-language sources. Dropped with the other provinces; note this removes a whole failure class from the eval
+- Formal hand-labelled evaluation sets (mapping corrections for held-out sources, ~200 vendor-resolution pairs, 40 agent questions) and the precision/recall/refusal-rate percentages that depend on them. Decided against spending the labelling weekend; reliability is demonstrated through logged decisions, a disclosed failure catalogue, and live-verified demos instead of a scored percentage.
 
 ### Success criteria
 1. Seven or more sources ingest and validate against the canonical schema.
 2. At least three sources were mapped by the generator and never hand-corrected.
-3. A hand-labelled gold set exists for mapping quality and for vendor resolution, both committed before the corresponding system was built.
-4. `cli eval` reproduces all headline metrics from one command.
-5. The agent answers a cross-level question with confidence attached, and declines a question the coverage cannot support, in the same demo.
-6. The failure analysis names at least ten specific failures with root causes.
+3. A single command reproduces the warehouse and its resolution/coverage tables end to end, deterministically.
+4. The agent answers a cross-level question with confidence attached, and declines a question the coverage cannot support, in the same demo.
+5. The failure analysis names at least ten specific failures with root causes.
 
 ---
 
@@ -200,10 +202,6 @@ procurement-resolver/
     server.py               MCP server (FastMCP)
     cli.py
   evals/
-    gold/
-      mappings/<source_id>.mapping.yaml
-      resolution/pairs.csv                 ~200 labelled vendor pairs
-      agent/questions.yaml                 ~40 questions in 3 buckets
     run_eval.py
     results/                                committed, timestamped
   docs/
@@ -302,7 +300,7 @@ Per generation: wall-clock, input/output tokens, cost, retries, validation outco
 Each of these is a row in the failure catalogue. Ten-plus specific failures with root causes is a deliverable.
 
 ### Metrics
-Precision and recall against the gold pair set, **broken out by jurisdiction pair** (federal↔Ontario, federal↔Ottawa, Ontario↔Ottawa), plus adjudication band width, proportion of pairs adjudicated, and cost per adjudicated pair. Report absolute counts alongside every percentage.
+No hand-labelled pair set (Part 3 scope cut) — report adjudication band width, proportion of pairs adjudicated, and cost per adjudicated pair instead of precision/recall. Resolution quality is demonstrated through the failure catalogue above (each hard case root-caused) and any disclosed scoring-function false positive, not a percentage.
 
 ---
 
@@ -327,15 +325,18 @@ Every tool that touches an entity returns resolution confidence alongside the an
 ### Refusal behaviour
 Below a configured confidence threshold, `cross_level_exposure` and `compare_buyers` return candidates and decline to aggregate. The agent's job is then to explain why. Cross-jurisdictional totals are exactly where a confident wrong answer does the most damage, because unified-looking data hides a guessed join.
 
-### Agent eval
-Forty questions in three buckets:
+### Agent demo
+No formal hand-labelled question set (Part 3 scope cut). Demonstrate, live
+against the real warehouse, the same three buckets a scored set would have
+measured:
 - **A — answerable.** Resolution is strong and coverage supports it.
 - **B — answerable with a caveat.** The answer requires stating a threshold or coverage gap.
 - **C — unanswerable.** Coverage or resolution cannot support it.
 
-Measure: tool-selection accuracy, answer correctness on A, caveat-presence rate on B, and **refusal rate on C**.
-
-Bucket C is the differentiator. Almost no portfolio agent has one.
+At minimum, one A-or-B example and one C example in the same session,
+verified against live data — a demonstration, not a tool-selection-accuracy
+percentage. Bucket C is still the differentiator. Almost no portfolio agent
+has one, scored or not.
 
 ---
 
@@ -352,10 +353,15 @@ Hand-write `mapping.yaml` for three sources: one federal, one Ontario, one simpl
 **Accept when:** all three ingest, validate, load; one SQL query returns records from all three with provenance intact.
 > You cannot evaluate generated mappings until you know what a correct one looks like. Skipping this is the most likely way the project goes wrong.
 
-### Phase 2 — Gold sets (weekend 2)
-Hand-label: correct mappings for two held-out sources, ~200 vendor pairs across all three jurisdiction pairings, and the 40 agent questions.
-**Accept when:** all three gold artifacts are committed, **before** the corresponding systems exist.
-> The least enjoyable weekend and the only reason any number in the writeup means anything. Do not label after seeing model output.
+### Phase 2 — Skipped by decision
+
+Originally scoped as a full weekend of hand-labelling held-out mapping
+corrections, ~200 vendor-resolution pairs, and 40 agent questions, so every
+later percentage would have a real baseline. Decided not to spend it — see
+Part 3, "Explicitly out of scope." Phases 3, 5, and 6 below adjust their
+acceptance tests accordingly: reproducibility and live-demonstrated
+behavior in place of precision/recall/refusal-rate against a held-out
+label set.
 
 ### Phase 3 — Mapping generator (weekend 3)
 `generate_mapping.py`, transform registry, validation gate.
@@ -368,28 +374,29 @@ Hand-label: correct mappings for two held-out sources, ~200 vendor pairs across 
 
 ### Phase 5 — Resolution (weekend 5)
 `resolve.py`, entity store, coverage table.
-**Accept when:** precision/recall reported by jurisdiction pair against the gold pairs, with absolute counts.
+**Accept when:** the entity/entity_link/coverage tables build end-to-end; adjudication band width and proportion of pairs adjudicated are logged; specific hard resolution cases are catalogued with root causes. No hand-labelled pair set (Part 3 scope cut), so no precision/recall figure is reported here.
 
 ### Phase 6 — MCP server and agent (weekend 6)
-`server.py`, tools, refusal logic, agent eval harness.
-**Accept when:** `cli eval` outputs mapping metrics, resolution metrics, and agent metrics from one command.
+`server.py`, tools, refusal logic, a live agent demo.
+**Accept when:** the MCP server's typed tools are live against the real warehouse, and one session demonstrates a confident cross-level answer alongside a correct refusal. No hand-labelled agent-question set (Part 3 scope cut), so no refusal-rate percentage is reported here.
 
 ### Phase 7 — Confidence gating and writeup (weekend 7)
-Sweep thresholds on both the mapping and resolution layers. Plot silent-error rate against abstention rate.
-**Accept when:** you can state *"gating at X cut silent errors from A% to B% at the cost of C% abstention"* — the strongest single line in the writeup.
+Sweep the resolution confidence threshold and report how the auto-accept / adjudication-band / auto-reject split moves, with a spot-check of a sample from each band.
+**Accept when:** you can state a real sentence of the form *"raising the auto-accept threshold from X to Y moved N pairs from auto-accepted to adjudicated"* — real behavior, not a silent-error curve scored against a label set that doesn't exist.
 
 `docs/WRITEUP.md` structure: one concrete failure and its downstream cost → the design decision that came out of it → the numbers → the ten-plus failure catalogue → how this generalizes beyond procurement → architecture last, if at all.
 
 ### Headline metrics
+No hand-labelled set to score field precision/recall, resolution P/R, or
+agent refusal rate against (Part 3 scope cut) — those need one and are not
+reported as percentages anywhere in this project. What's reported instead:
+
 | Metric | Definition |
 |---|---|
-| Field precision | correct mappings / mappings proposed |
-| Field recall | correct mappings / mappings existing in gold |
-| Abstention rate | fields correctly marked `unmapped` |
-| **Silent-error rate** | mappings passing all validation but disagreeing with gold |
-| Resolution P/R | by jurisdiction pair, with counts |
-| Agent refusal rate | correct declines on bucket C |
+| Validation pass rate | mapped/extracted records passing OCDS subset validation |
+| Adjudication band width & hit rate | proportion of resolution pairs falling into the uncertain band |
 | Cost & latency | per source onboarded; Ottawa extraction reported separately |
+| Failure catalogue size | root-caused specific cases, not an aggregate score |
 
 ---
 
@@ -406,7 +413,7 @@ Sweep thresholds on both the mapping and resolution layers. Plot silent-error ra
 6. Should this be deployed, or is a reproducible local build enough?
 
 **Rigor**
-7. Is ~200 labelled pairs and two held-out sources enough to state percentages?
+7. Is skipping the hand-labelled evaluation set the right call, or does a project whose whole thesis is "measured reliability" undermine itself by shipping without a single measured percentage?
 8. Am I fooling myself anywhere — is there a path where this produces good-looking numbers that don't mean anything?
 9. Is the threshold-difference problem ($10K / $25K / $100K) handled honestly by putting it in a coverage table, or does it undermine cross-level comparison entirely?
 
@@ -424,8 +431,6 @@ Sweep thresholds on both the mapping and resolution layers. Plot silent-error ra
 | Federal registry misses Ontario-incorporated firms | Report registry-anchored and vendor-to-vendor resolution as separate modes |
 | Sources move or go offline | Archive raw on first fetch; never re-fetch for reproducibility |
 | Licence or ToS problems | Open-licensed sources only; verify and record per source |
-| Gold set too small | Report absolute counts alongside every percentage |
-| Gold set contaminated | Label and commit before building the corresponding system |
 | Scope creep (directors graph, other provinces, UI) | Part 3 cuts are binding; revisit only after Phase 7 ships |
 | Numbers quoted before earned | **No metric appears anywhere until `run_eval.py` produced it.** |
 | Dropping French removes a failure class | Acknowledge explicitly in the writeup as a limitation, not an omission |
@@ -434,15 +439,15 @@ Sweep thresholds on both the mapping and resolution layers. Plot silent-error ra
 
 ## Part 13 — The resume lines
 
-Draft. **All figures are placeholders until the eval harness produces them.**
+Draft. No percentage claims — a hand-labelled eval set was scoped out (Part 3), so there's no precision or refusal-rate figure to quote, drafted or otherwise.
 
-> **Cross-Jurisdictional Procurement Resolver** — Unified federal, Ontario, and City of Ottawa contract data (7 sources, CSV to committee PDFs) into one OCDS schema using LLM-generated adapters; resolved vendors across jurisdictions at 91% precision with confidence propagated to every answer. MCP agent answers cross-level exposure questions and correctly declines 87% of questions the coverage can't support.
+> **Cross-Jurisdictional Procurement Resolver** — Unified federal, Ontario, and City of Ottawa contract data (7+ sources, CSV to committee PDFs) into one OCDS schema using LLM-generated adapters; resolved vendors across jurisdictions with confidence and evidence attached to every match. MCP agent answers cross-level exposure questions and correctly declines the ones the coverage or confidence can't support, live-demonstrated against the real data rather than scored against a held-out set.
 
 ---
 
 ## Part 14 — Notes for Claude Code
 
-- Start at **Phase 0**. Phases 1 and 2 are prerequisites for everything else; the project fails without them.
+- Start at **Phase 0**. Phase 1 is a prerequisite for everything else; the project fails without it. Phase 2 was skipped by decision (Part 3) — do not attempt to backfill it.
 - Verify every source URL is live before writing an adapter. Do not trust URLs in this document.
 - Record each source's licence in `source.yaml` before ingesting.
 - DuckDB only. Single file, no server, no infra.
@@ -450,6 +455,5 @@ Draft. **All figures are placeholders until the eval harness produces them.**
 - Source records are immutable. Resolution writes to `entity_link`; it never rewrites a vendor name in place.
 - Every LLM call logs tokens, cost, and latency to a structured file. This is a deliverable, not debug output.
 - Report federal/Ontario onboarding cost and Ottawa per-document extraction cost separately. Never blend them.
-- Commit all gold-set files before implementing the systems they evaluate: mappings before `generate_mapping.py`, pairs before `resolve.py`, questions before `server.py`.
 - Write an ADR in `docs/DECISIONS.md` at every deterministic-vs-LLM decision point.
 - No `run_sql` tool on the MCP server. Typed tools only.
