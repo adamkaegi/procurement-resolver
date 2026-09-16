@@ -73,6 +73,7 @@ they are more valuable than the code.
 - `pydantic` for the canonical model, JSON Schema for validation
 - `fastmcp` for the MCP server
 - `pytest` for tests
+- `openpyxl` for Excel-workbook source extraction (added via ADR, `docs/DECISIONS.md`)
 
 Do not add dependencies beyond these without writing an ADR.
 
@@ -86,11 +87,13 @@ Do not add dependencies beyond these without writing an ADR.
 
 ## Reporting
 
-At the end of every phase, append to `docs/PROGRESS.md`:
-- what the acceptance test checked and whether it passed
-- anything you had to decide that the spec did not cover
-- anything you are uncertain about
-- anything a human should verify before the next phase
+`docs/PROGRESS.md` describes the project's current state — what's built and
+what isn't — not a session-by-session log. At the end of every phase, update
+it to stay accurate, rather than appending another entry to a growing diary.
+Session-level detail (what an acceptance test checked, decisions made,
+doubts raised) belongs in `git log` and, for anything that's a real
+deterministic-vs-LLM or architectural choice, in `docs/DECISIONS.md`.
 
-Be specific about uncertainty. A flagged doubt is more useful than a confident
-summary.
+Be specific about uncertainty when it belongs in `docs/PROGRESS.md`'s "What
+isn't measured yet" section — a flagged doubt there is more useful than a
+confident summary. It does not need to be repeated everywhere else.

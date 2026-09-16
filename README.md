@@ -114,41 +114,31 @@ Quick reference, the five tools (`src/agent_tools.py`, wired in `src/server.py`)
 
 No `run_sql` tool — typed tools only, per `CLAUDE.md` rule 5.
 
-## Status & limitations
+## Status
 
-This project reports what's measured, not what sounds finished — see
-[`CLAUDE.md`](CLAUDE.md) rule 1: no precision, recall, cost, or latency
-figure appears anywhere unless an eval run in `evals/run_eval.py` produced
-it. That harness does not exist yet, so **mapping-quality precision/recall,
-resolution precision/recall, and agent refusal-rate are all TBD** — not
-measured, not estimated, not implied by anything in this README.
+6 sources ingested (23,426 records), a working end-to-end rebuild
+(`scripts/rebuild.py`), a resolved entity/entity_link/coverage layer (9,030
+entities, 412 of them resolved across two or more jurisdictions), a working
+MCP server with real refusal logic verified against the live warehouse, and
+a real logged local-LLM mapping-generation run in
+[`evals/results/llm_calls.jsonl`](evals/results/llm_calls.jsonl). Full
+detail: [`docs/PROGRESS.md`](docs/PROGRESS.md).
 
-What *is* real and checkable today: 6 ingested sources across federal /
-Ontario / Ottawa, a working end-to-end rebuild (`scripts/rebuild.py`), a
-resolved entity/entity_link/coverage layer, a working MCP server with real
-refusal logic, and two genuine logged local-LLM calls in
-[`evals/results/llm_calls.jsonl`](evals/results/llm_calls.jsonl) (real
-tokens, real latency, `$0.00` because inference is local via Ollama, not
-because no model ran).
+Every design decision — deterministic vs. LLM, and every architectural
+trade-off — is logged with its rejected alternative in
+[`docs/DECISIONS.md`](docs/DECISIONS.md). Specific, named vendor-resolution
+failure modes (numbered companies, parent/subsidiary pairs, a real scoring
+false positive) with root causes are in
+[`docs/FAILURES.md`](docs/FAILURES.md).
 
-For the actual state of the project — what's done, what's provisional, what's
-blocked, and every specific failure with its root cause — read these directly
-rather than trusting a summary of them:
-
-- **[`docs/PROGRESS.md`](docs/PROGRESS.md)** — what was built, per session, including what
-  each acceptance check actually verified and what's still uncertain.
-- **[`docs/DECISIONS.md`](docs/DECISIONS.md)** — the ADR log. Every deterministic-vs-LLM
-  choice and every architectural trade-off, with the alternative rejected and why.
-- **[`docs/FAILURES.md`](docs/FAILURES.md)** — the resolution failure catalogue: specific,
-  named cases (numbered companies, parent/subsidiary pairs, a real scoring
-  false positive) with root causes, not aggregate metrics.
-- **[`docs/BLOCKED.md`](docs/BLOCKED.md)** — where a phase hit a hard stop, and how it
-  was (or wasn't) resolved.
-
-The biggest structural gap: `evals/gold/` — hand-labelled mapping corrections,
-~200 vendor-resolution pairs, and 40 agent questions — is intentionally empty.
-It's human-only labelling work per `docs/RUNBOOK.md`, and every quality metric
-in this project is blocked on it existing.
+This project's thesis is that a reliability claim needs a number behind it
+(`CLAUDE.md` rule 1: no precision, recall, cost, or latency figure appears
+anywhere unless an eval run produced it) — so stated plainly rather than
+implied: mapping-quality precision/recall, resolution precision/recall, and
+agent refusal-rate are not measured yet. They depend on `evals/gold/` —
+hand-labelled mapping corrections, ~200 vendor-resolution pairs, and 40
+agent questions — which is intentionally empty pending human labelling
+(`docs/RUNBOOK.md`), and on `evals/run_eval.py`, which doesn't exist yet.
 
 ## License
 

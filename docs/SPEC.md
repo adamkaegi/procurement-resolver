@@ -4,6 +4,12 @@
 **Version:** 2 (narrowed to the National Capital Region; agent layer added)
 **Purpose of this document:** two audiences. Mentors should read Parts 1–3 and answer the questions in Part 11. Claude Code should read Parts 4–10 and start at Part 10.
 
+> This is the original design spec, written and committed before the build
+> started, and left as-written below — including Part 13's placeholder
+> figures, which stay placeholders on purpose (Part 12: "no metric appears
+> anywhere until `run_eval.py` produced it"). For what actually exists today,
+> see [`README.md`](../README.md) and [`docs/PROGRESS.md`](PROGRESS.md).
+
 ---
 
 ## Part 1 — Thesis

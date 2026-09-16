@@ -96,7 +96,7 @@ def _load_document_source(
 def load_ottawa() -> int:
     """Re-run the deterministic (no-network, no-model) PDF extraction from raw,
     then load the resulting canonical records. Licence verified 2026-09-10;
-    see sources/ottawa_contracts_awarded/source.yaml and docs/BLOCKED.md."""
+    see sources/ottawa_contracts_awarded/source.yaml and docs/DECISIONS.md."""
     return _load_document_source(
         "ottawa_contracts_awarded", OTTAWA_RAW_DIR, "*.pdf", recursive=False,
         extractor=extract_directory, processed_path=OTTAWA_PROCESSED, log_path=OTTAWA_LOG,

@@ -1,5 +1,9 @@
 # Runbook — Autonomous build sequence
 
+> The methodology this project was actually built under, left as-written.
+> For what exists today, see [`README.md`](../README.md) and
+> [`docs/PROGRESS.md`](PROGRESS.md).
+
 One phase per session. Do not chain phases in a single run: each acceptance test
 is a place where a silent wrong turn becomes visible, and a compacted context
 seven phases deep will have forgotten why the schema looks the way it does.

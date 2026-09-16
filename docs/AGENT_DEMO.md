@@ -82,12 +82,6 @@ zero-value arrangements, Ottawa's image-only PDF, the federal 5,000-row
 truncation) — the thing spec Part 2 calls "the best argument in the project
 for why an agent with coverage awareness beats a dashboard."
 
-## 3. Recording
-
-Screen-record (QuickTime: File > New Screen Recording) the chat window
-through both prompts above. No need to show the config step in the
-recording — start it once the tools are already connected.
-
 ## Known friction
 
 - **DuckDB single-writer lock.** If you have `duckdb data/warehouse.duckdb`
