@@ -27,10 +27,11 @@ framing and design rationale: [`docs/SPEC.md`](docs/SPEC.md).
 
 ## Try it
 
-- **[The Register](https://claude.ai/code/artifact/1ad22cdc-4a5a-4e58-87ce-b7f0a6428ef7)**
+- **[The Register](https://adamkaegi.github.io/procurement-resolver/)**
   — a static, filterable browser over the resolved warehouse: every ingested
   contract, plus every vendor resolved across two or more jurisdictions, with
-  the same coverage caveats the MCP tools return. No setup required.
+  the same coverage caveats the MCP tools return. No setup required. Built
+  by `scripts/build_register.py`, published from the `gh-pages` branch.
 - **The MCP agent**, from your own machine, talking to a real MCP client
   (e.g. Claude Desktop) — see [Connecting an MCP client](#connecting-an-mcp-client) below.
 
