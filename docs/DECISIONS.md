@@ -314,9 +314,8 @@ thing to understand about how this pipeline actually runs.
 ### Hosting: GitHub Pages (`gh-pages` branch), not a Claude Artifact
 
 - Context: the data browser was first published as a Claude Artifact —
-  quick to ship, but privately hosted on Anthropic's infrastructure rather
-  than the project's own repo, and not the kind of link a reviewer expects
-  when looking at a GitHub-hosted portfolio project.
+  quick to ship, but hosted on Anthropic's infrastructure rather than the
+  project's own repo.
 - Decision: publish the same built `demo/register.html` to a dedicated
   `gh-pages` branch (an orphan branch containing only `index.html`, kept
   separate from `main` so the actual source tree and `docs/` folder stay
