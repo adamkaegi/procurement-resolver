@@ -44,11 +44,12 @@ files (~1.39M and ~786K rows respectively) — the volume cap the project
 scopes to, applied in file order rather than as a random sample. Noted in
 each source's `coverage.known_gaps`, not hidden in the row count alone.
 
-Field mapping for four CSV sources is hand-written and reviewed
-(`sources/*/mapping.yaml`); one (`canadabuys_contract_history`) is real,
-unedited output from a locally-running Ollama model (`qwen2.5:7b-instruct`)
-— see `docs/DECISIONS.md` for what that run actually looked like, including
-its real quality gaps. Ottawa's two sources are extracted by dedicated code
+Field mapping for three of the four CSV sources is hand-written and
+reviewed (`sources/*/mapping.yaml`); the fourth
+(`canadabuys_contract_history`) is real, unedited output from a
+locally-running Ollama model (`qwen2.5:7b-instruct`) — see
+`docs/DECISIONS.md` for what that run actually looked like, including its
+real quality gaps. Ottawa's two sources are extracted by dedicated code
 (`src/extract_documents.py` for PDFs, `src/ingest_ottawa_open_data.py` for
 Excel workbooks) rather than mapping config; `docs/DECISIONS.md` covers why
 mapping application is code-driven rather than `mapping.yaml`-driven
@@ -88,10 +89,11 @@ pairing a confident answer with a correct refusal): `docs/AGENT_DEMO.md`.
 
 A static, filterable snapshot of the full warehouse — every record, every
 cross-jurisdiction resolved entity, the same coverage caveats the MCP tools
-return — published as a Claude Artifact
-([link in the README](../README.md#try-it)). Regenerated from the warehouse
-via `scripts/export_snapshot.py`; no server, no live database connection at
-runtime.
+return — published via GitHub Pages
+([link in the README](../README.md#try-it)). Built by
+`scripts/build_register.py` (which reuses `scripts/export_snapshot.py`'s
+data-fragment functions) and pushed to the `gh-pages` branch; no server, no
+live database connection at runtime.
 
 ## Tests and CI
 
@@ -104,7 +106,7 @@ clean throughout.
 This project's own thesis is that a claim needs a number behind it, so this
 is stated plainly once rather than hedged throughout: field-mapping
 precision/recall, resolution precision/recall, and agent refusal-rate are
-**not measured**. They depend on `evals/gold/` — hand-labelled mapping
+**not measured**. They depend on [`evals/gold/`](../evals/gold/) — hand-labelled mapping
 corrections, ~200 vendor-resolution pairs, and 40 agent questions — which
 is intentionally empty pending human labelling (labelling after seeing
 model output would invalidate it). `evals/run_eval.py`, the single command

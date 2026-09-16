@@ -3,6 +3,10 @@
 Read `docs/SPEC.md` before doing anything. It is the source of truth. This file
 is the set of rules that override convenience.
 
+> This is the actual rule set this project was built under, left as-written
+> and still in force. For what the project currently is, see
+> [`README.md`](README.md) and [`docs/PROGRESS.md`](docs/PROGRESS.md).
+
 ## What this project is
 
 Two systems over Canadian procurement data (federal / Ontario / City of Ottawa):
@@ -23,7 +27,10 @@ serves a number in the eval harness.
 2. **`evals/gold/` is read-only.** These files are hand-labelled by the human.
    Never create, edit, extend, or regenerate anything under that directory.
    If a gold file is missing, STOP and report it. Do not synthesize one.
-   The entire project's validity depends on this.
+   The entire project's validity depends on this. **Current status:**
+   `evals/gold/` is empty — the human labelling was never done — so no
+   precision/recall/refusal-rate metric is reported anywhere in this repo.
+   See `docs/PROGRESS.md`, "What isn't measured yet."
 
 3. **Source records are immutable.** Raw payloads under `data/raw/` are never
    modified after fetch. Vendor names are never normalized in place. Resolution

@@ -288,23 +288,46 @@ thing to understand about how this pipeline actually runs.
   (e.g. Kleenoil Filtration Canada Ltd, Ottawa-only) correctly declines
   with a stated reason instead of fabricating a cross-level number.
 
-### Data browser: a static snapshot Artifact, not a live backend
+### Data browser: a static snapshot, not a live backend
 
 - Context: wanted a clean way to browse the warehouse without building new
   infrastructure the "no server, no cloud infra" stack rule argues against.
 - Decision: `scripts/export_snapshot.py` reads the warehouse read-only and
-  writes a gzip+base64 JSON snapshot — every release, every
+  produces a gzip+base64 JSON snapshot — every release, every
   cross-jurisdiction resolved entity (via the same `agent_tools` functions
   the MCP server uses, so the two surfaces can't drift apart in logic), and
   the coverage table. `demo/register_template.html` is a self-contained
   static page (one embedded variable font, vanilla JS, client-side
   `DecompressionStream`) with no server, no database connection, and no API
-  calls at runtime, published as a Claude Artifact.
+  calls at runtime. `scripts/build_register.py` merges the two into one
+  ready-to-serve `demo/register.html`.
 - Alternative rejected: a live web app backed by a running server and a
   connection to the warehouse — real hosting, auth, and maintenance surface
   for a piece that doesn't need to be live.
 - Consequence: the browser is a point-in-time snapshot, not a live view —
   it goes stale the moment the warehouse changes and is regenerated on
-  purpose (`uv run python scripts/export_snapshot.py`, then republish), not
-  automatically. `demo/*.b64` and `demo/coverage.json` are gitignored
-  (derived data); the template and export script are committed.
+  purpose (`uv run python scripts/build_register.py`), not automatically.
+  `demo/*.b64`, `demo/coverage.json`, and the built `demo/register.html`
+  are gitignored (derived data); the template, the two build scripts, and
+  the committed font asset (`demo/assets/`) are what's actually versioned.
+
+### Hosting: GitHub Pages (`gh-pages` branch), not a Claude Artifact
+
+- Context: the data browser was first published as a Claude Artifact —
+  quick to ship, but privately hosted on Anthropic's infrastructure rather
+  than the project's own repo, and not the kind of link a reviewer expects
+  when looking at a GitHub-hosted portfolio project.
+- Decision: publish the same built `demo/register.html` to a dedicated
+  `gh-pages` branch (an orphan branch containing only `index.html`, kept
+  separate from `main` so the actual source tree and `docs/` folder stay
+  untouched) and serve it via GitHub Pages.
+- Alternative rejected: keeping the Claude Artifact as the canonical link,
+  or standing up a separate hosting account/service for one static file —
+  GitHub Pages is free, requires no new account, and the repo was made
+  public specifically to enable it.
+- Consequence: the browser now lives at
+  `https://adamkaegi.github.io/procurement-resolver/`, under this repo's
+  own control. Republishing after a warehouse change is a manual, two-step
+  build-then-push (`scripts/build_register.py`, then copy the output into
+  a `gh-pages` worktree and push) — deliberately manual, same reasoning as
+  the snapshot-not-live-view decision above.

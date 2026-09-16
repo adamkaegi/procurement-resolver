@@ -136,7 +136,8 @@ This project's thesis is that a reliability claim needs a number behind it
 (`CLAUDE.md` rule 1: no precision, recall, cost, or latency figure appears
 anywhere unless an eval run produced it) — so stated plainly rather than
 implied: mapping-quality precision/recall, resolution precision/recall, and
-agent refusal-rate are not measured yet. They depend on `evals/gold/` —
+agent refusal-rate are not measured yet. They depend on
+[`evals/gold/`](evals/gold/) —
 hand-labelled mapping corrections, ~200 vendor-resolution pairs, and 40
 agent questions — which is intentionally empty pending human labelling
 (`docs/RUNBOOK.md`), and on `evals/run_eval.py`, which doesn't exist yet.
