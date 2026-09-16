@@ -1,12 +1,14 @@
-"""Export a static, gzip-compressed snapshot of the warehouse for docs/register.html
-(the Artifact data browser). Read-only against data/warehouse.duckdb; writes
-JSON/base64 fragments to demo/ (gitignored -- derived data, regenerate on demand).
+"""Export a gzip-compressed snapshot of the warehouse as data fragments
+(releases/entities/coverage). Read-only against data/warehouse.duckdb.
+
+The functions here are the shared logic `scripts/build_register.py` imports
+to produce the final, ready-to-serve demo/register.html in one command --
+use that script to build the actual page. Running this file directly is
+just for inspecting the fragments on their own (writes them to demo/,
+gitignored, derived data).
 
 Usage:
     uv run python scripts/export_snapshot.py
-    # then paste demo/releases.b64, demo/entities.b64, demo/coverage.json
-    # into the __RELEASES_B64__ / __ENTITIES_B64__ / __COVERAGE_JSON__
-    # placeholders in a copy of the register.html template and republish.
 """
 
 import base64
