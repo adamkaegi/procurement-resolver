@@ -2,7 +2,7 @@
 
 **Author:** Adam Kaegi
 **Version:** 2 (narrowed to the National Capital Region; agent layer added)
-**Purpose of this document:** Parts 1–3 give the framing and scope; Parts 4–10 are the build detail; Parts 11–13 cover risks, the resume framing, and the working rules.
+**Purpose of this document:** Parts 1–3 give the framing and scope; Parts 4–10 are the build detail; Parts 11–12 cover risks and the working rules.
 
 > This is the original design spec, written and committed before the build
 > started. It has since been updated in place where later decisions changed
@@ -415,15 +415,7 @@ reported as percentages anywhere in this project. What's reported instead:
 
 ---
 
-## Part 12 — The resume lines
-
-Draft. No percentage claims — a scored eval set was cut from scope (Part 3), so there's no precision or refusal-rate figure to quote, drafted or otherwise.
-
-> **Cross-Jurisdictional Procurement Resolver** — Unified federal, Ontario, and City of Ottawa contract data (7+ sources, CSV to committee PDFs) into one OCDS schema using LLM-generated adapters; resolved vendors across jurisdictions with confidence and evidence attached to every match. MCP agent answers cross-level exposure questions and correctly declines the ones the coverage or confidence can't support, live-demonstrated against the real data rather than scored against a held-out set.
-
----
-
-## Part 13 — Notes for Claude Code
+## Part 12 — Notes for Claude Code
 
 - Start at **Phase 0**. Phase 1 is a prerequisite for everything else; the project fails without it. Phase 2 was skipped by decision (Part 3) — do not attempt to backfill it.
 - Verify every source URL is live before writing an adapter. Do not trust URLs in this document.
