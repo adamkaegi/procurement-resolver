@@ -309,8 +309,9 @@ the code is shaped the way it is.
   for the bulk of pairs, with an LLM adjudicator reserved for the uncertain
   confidence band only.
 - Decision: normalize (strip legal suffixes, punctuation, casing), block on
-  normalized tokens, score with `rapidfuzz.token_set_ratio`. Pairs scoring
-  above the upper threshold auto-match, below the lower threshold
+  normalized tokens, score with `rapidfuzz` (originally `token_set_ratio`;
+  see the scorer ADR above for why it is now `token_sort_ratio`). Pairs
+  scoring above the upper threshold auto-match, below the lower threshold
   auto-reject; in between, abstain (`decision: None`) rather than force a
   match when no adjudicator is configured.
 - Alternative rejected: forcing every uncertain pair into a match or
@@ -318,11 +319,11 @@ the code is shaped the way it is.
 - Consequence: `entity_link` never fabricates certainty for a pair the
   scoring function is genuinely unsure about, and the adjudication band's
   width and hit rate are directly measurable
-  (`evals/results/PROVISIONAL_resolution_metrics.log`). Known false
-  positive from this same scoring function: `token_set_ratio` treats a name
-  that's a strict token superset of another as a full match regardless of
-  meaning (`docs/FAILURES.md` #17) — a real, disclosed precision limit, not
-  hidden by the pipeline that uses it.
+  (`evals/results/PROVISIONAL_resolution_metrics.log`). The banding
+  structure described here outlived its original scorer: the
+  token-superset false positive it used to disclose
+  (`docs/FAILURES.md` #17) was fixed by changing the metric, not the
+  bands.
 
 ## Sources
 

@@ -106,7 +106,7 @@ live database connection at runtime.
 
 ## Tests and CI
 
-`uv run pytest` — 75 tests, deterministic, no network, no model call, run
+`uv run pytest` — 91 tests, deterministic, no network, no model call, run
 in CI on every push (`.github/workflows/ci.yml`). `uv run ruff check .`
 clean throughout.
 
