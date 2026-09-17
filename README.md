@@ -89,7 +89,7 @@ data/raw/<source>/<timestamp>/   archived raw payloads, immutable, never re-fetc
         │
         ▼
 apply_mapping.py / extract_documents.py / ingest_ottawa_open_data.py
-        │            (deterministic, per-source code; mapping.yaml documents intent)
+        │            (deterministic; each mapping.yaml is executed by a generic interpreter)
         ▼
 validate.py            (every record checked against schema/ocds_subset.json)
         ▼

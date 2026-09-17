@@ -20,6 +20,9 @@ mappings:
   - canonical: awards[].value.amount
     source_field: contract_value
     transform: parse_currency
+  - canonical: awards[].value.currency
+    transform: constant
+    constant: CAD
   - canonical: awards[].description
     source_field: description_en
     transform: direct

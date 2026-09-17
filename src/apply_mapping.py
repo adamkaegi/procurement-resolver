@@ -1,4 +1,19 @@
-"""Deterministic application of reviewed Phase 1 source mappings."""
+"""Apply a source's reviewed mapping.yaml to its raw CSV, deterministically.
+
+The mapping config is executable, not documentation: each entry names the
+canonical field, the source column(s) to read (fallback order declared in
+`source_fields`), and a transform registered in `transform_registry.py`.
+This module interprets that config generically -- there is no per-source
+Python branch (see docs/DECISIONS.md, "mapping.yaml is executed, not
+decorative").
+
+Structural fields no source publishes are supplied here, uniformly:
+`initiationType` ("tender"), `tag` (["award"]), `buyer.id`
+("<source_id>:buyer"), `buyer.jurisdiction` (from config), the award
+mirroring of release id/date, and the provenance block. A mapping entry for
+one of those structural fields (disposition "unmapped") is documentation of
+the source's gap, not something this interpreter reads.
+"""
 
 import csv
 from datetime import datetime, timezone
@@ -7,115 +22,98 @@ from typing import Any
 
 import yaml
 
-from .validate import parse_date, validate_releases
+from .transform_registry import TRANSFORMS
+from .validate import validate_releases
+
+# Canonical fields the interpreter reads from the mapping to assemble a
+# release. Everything else in the release shape is structural (see module
+# docstring).
+_MAPPED_FIELDS = (
+    "ocid",
+    "id",
+    "date",
+    "buyer.name",
+    "awards[].suppliers[].name",
+    "awards[].value.amount",
+    "awards[].value.currency",
+    "awards[].description",
+    "awards[].items[].classification.id",
+    "contracts[].period.startDate",
+    "contracts[].period.endDate",
+)
 
 
-def _value(row: dict[str, str], key: str) -> str:
-    return (row.get(key) or "").strip()
-
-
-def _float(row: dict[str, str], key: str) -> float:
-    return float(_value(row, key).replace(",", "").replace("$", "") or "0")
+def _extract(entry: dict[str, Any] | None, row: dict[str, str]) -> Any:
+    if entry is None:
+        return None
+    fields = entry.get("source_fields") or ([entry["source_field"]] if entry.get("source_field") else [])
+    values = [(row.get(field) or "").strip() for field in fields]
+    transform = TRANSFORMS[entry.get("transform", "unmapped")]
+    return transform(values, entry)
 
 
 def _release(row: dict[str, str], config: dict[str, Any], raw_ref: str) -> dict[str, Any]:
-    # Deliberately hardcoded per source_id rather than driven generically by
-    # config["mappings"] (source_field/transform) -- a disclosed trade-off,
-    # not an oversight. See docs/DECISIONS.md, "Phase 1 mapping.yaml is
-    # documentation, not executable config", for the reasoning and the
-    # human decision needed before that changes.
-    source_id = config["source_id"]
-    now = datetime.now(timezone.utc).isoformat()
-    field_origins = {item["canonical"]: item.get("source_field", item.get("source_fields")) for item in config["mappings"]}
-    scheme: str | None = None  # branches may set it; defaults to the length heuristic below
-    if source_id == "federal_contracts":
-        ocid = _value(row, "procurement_id")
-        release_id = _value(row, "reference_number")
-        date = _value(row, "contract_date")
-        buyer_name = _value(row, "buyer_name")
-        vendor = _value(row, "vendor_name")
-        amount = _float(row, "contract_value")
-        description = _value(row, "description_en")
-        classification = _value(row, "commodity_code")
-        start, end = _value(row, "contract_period_start"), _value(row, "delivery_date")
-    elif source_id == "canadabuys_award_notices":
-        ocid = _value(row, "solicitationNumber-numeroSollicitation") or _value(row, "referenceNumber-numeroReference")
-        release_id = _value(row, "contractNumber-numeroContrat") or _value(row, "referenceNumber-numeroReference")
-        date = _value(row, "contractAwardDate-dateAttributionContrat") or _value(row, "publicationDate-datePublication")
-        buyer_name = _value(row, "contractingEntityName-nomEntitContractante-eng")
-        vendor = _value(row, "supplierLegalName-nomLegalFournisseur-eng")
-        amount = _float(row, "contractAmount-montantContrat")
-        if amount < 0:
-            amount = _float(row, "totalContractValue-valeurTotaleContrat")
-        description = _value(row, "awardDescription-descriptionAttribution-eng") or _value(row, "title-titre-eng")
-        classification = _value(row, "unspsc-unspsc") or _value(row, "gsin-nibs")
-        start, end = _value(row, "contractStartDate-contratDateDebut"), _value(row, "contractEndDate-dateFinContrat")
-    elif source_id == "canadabuys_contract_history":
-        # Same publisher, same eng/fra field-naming convention as
-        # canadabuys_award_notices, but a distinct dataset (full contract
-        # history vs. award-notice publications) -- see source.yaml.
-        ocid = _value(row, "solicitationNumber-numeroSollicitation") or _value(row, "referenceNumber-numeroReference")
-        release_id = _value(row, "referenceNumber-numeroReference")
-        date = _value(row, "contractAwardDate-dateAttributionContrat") or _value(row, "publicationDate-datePublication")
-        buyer_name = _value(row, "contractingEntityName-nomEntitContractante-eng")
-        vendor = (
-            _value(row, "supplierLegalName-nomLegalFournisseur-eng")
-            or _value(row, "supplierOperatingName-nomCommercialFournisseur-eng")
-        )
-        amount = _float(row, "contractAmount-montantContrat")
-        if amount < 0:
-            amount = _float(row, "totalContractValue-valeurTotaleContrat")
-        description = _value(row, "tenderDescription-descriptionAppelOffres-eng") or _value(row, "title-titre-eng")
-        classification = _value(row, "unspsc") or _value(row, "gsin-nibs")
-        start, end = _value(row, "contractStartDate-contratDateDebut"), _value(row, "contractEndDate-dateFinContrat")
-    elif source_id == "ontario_vor":
-        ocid = _value(row, "Vendor of Record (VOR) Number")
-        release_id = ocid
-        date = _value(row, "Start Date")
-        buyer_name = config.get("buyer_name", "Ontario Government")
-        vendor = _value(row, "Qualified Vendor")
-        amount = 0.0
-        description = _value(row, "Vendor of Record (VOR) Name")
-        classification = "VOR"
-        scheme = "VOR"
-        start, end = _value(row, "Start Date"), _value(row, "End Date")
-    else:
+    entries = {entry["canonical"]: entry for entry in config["mappings"]}
+    missing = [field for field in ("ocid", "id") if field not in entries]
+    if missing:
         raise ValueError(
-            f"no mapping implementation for source_id {source_id!r} -- add an "
-            "explicit branch here (see docs/DECISIONS.md, hardcoded-dispatch ADR)"
+            f"mapping for {config['source_id']!r} lacks required canonical field(s) {missing} -- "
+            "every source must map a release identity"
         )
-    if scheme is None:
-        # Federal columns carry either short GSIN-style codes or long UNSPSC
-        # codes in the same field; length is the discriminator available in
-        # the raw data.
-        scheme = "GSIN" if len(classification) <= 6 else "UNSPSC"
-    release = {
+
+    def value_of(canonical: str, default: Any = None) -> Any:
+        extracted = _extract(entries.get(canonical), row)
+        return extracted if extracted not in ("", None) else default
+
+    source_id = config["source_id"]
+    ocid = value_of("ocid")
+    release_id = value_of("id")
+    date = value_of("date")
+    classification = value_of("awards[].items[].classification.id", "")
+    # A source may declare its classification scheme (e.g. ontario_vor's
+    # "VOR"); federal columns carry either short GSIN-style codes or long
+    # UNSPSC codes in the same field, where length is the only available
+    # discriminator.
+    scheme = config.get("classification_scheme") or ("GSIN" if len(classification) <= 6 else "UNSPSC")
+    start = value_of("contracts[].period.startDate")
+    end = value_of("contracts[].period.endDate")
+
+    return {
         "ocid": ocid,
         "id": release_id,
-        "date": parse_date(date),
+        "date": date,
         "initiationType": "tender",
         "tag": ["award"],
-        "buyer": {"name": buyer_name or "Unknown", "id": f"{source_id}:buyer", "jurisdiction": config["jurisdiction"]},
+        "buyer": {
+            "name": value_of("buyer.name", "Unknown"),
+            "id": f"{source_id}:buyer",
+            "jurisdiction": config["jurisdiction"],
+        },
         "awards": [{
             "id": release_id,
-            "date": parse_date(date),
-            "value": {"amount": amount, "currency": _value(row, "contractCurrency-contratMonnaie") or "CAD"},
-            "suppliers": [{"name": vendor or "Unknown", "id": None}],
-            "description": description or None,
+            "date": date,
+            "value": {
+                "amount": value_of("awards[].value.amount", 0.0),
+                "currency": value_of("awards[].value.currency", "CAD"),
+            },
+            "suppliers": [{"name": value_of("awards[].suppliers[].name", "Unknown"), "id": None}],
+            "description": value_of("awards[].description"),
             "items": [{"classification": {"scheme": scheme, "id": classification or "UNKNOWN"}}],
-            "contractPeriod": {"startDate": parse_date(start), "endDate": parse_date(end)},
+            "contractPeriod": {"startDate": start, "endDate": end},
         }],
-        "contracts": [{"period": {"startDate": parse_date(start), "endDate": parse_date(end)}, "awardID": release_id}],
+        "contracts": [{"period": {"startDate": start, "endDate": end}, "awardID": release_id}],
         "_provenance": {
             "source_id": source_id,
-            "fetched_at": now,
+            "fetched_at": datetime.now(timezone.utc).isoformat(),
             "mapping_version": config["mapping_version"],
             "raw_ref": raw_ref,
-            "field_origins": field_origins,
+            "field_origins": {
+                entry["canonical"]: entry.get("source_field", entry.get("source_fields"))
+                for entry in config["mappings"]
+            },
             "extraction_conf": None,
         },
     }
-    return release
 
 
 def _is_usable_row(row: dict[str, str], config: dict[str, Any]) -> bool:
@@ -124,7 +122,7 @@ def _is_usable_row(row: dict[str, str], config: dict[str, Any]) -> bool:
     footer/note rows that aren't vendors (see docs/FAILURES.md #12)."""
     has_any_value = any(value.strip() for value in row.values() if value)
     required_field = config.get("required_source_field")
-    return has_any_value and (not required_field or _value(row, required_field))
+    return bool(has_any_value and (not required_field or (row.get(required_field) or "").strip()))
 
 
 def ingest_csv(path: Path, config_path: Path, limit: int = 5000) -> list[dict[str, Any]]:

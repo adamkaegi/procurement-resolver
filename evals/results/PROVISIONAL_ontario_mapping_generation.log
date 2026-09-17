@@ -1,2 +1,0 @@
-PROVISIONAL
-{"source_id": "ontario_vor", "model": "offline-deterministic-scaffold", "input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0, "latency_ms": 1.153, "retries": 0, "validation_outcome": "passed", "errors": []}

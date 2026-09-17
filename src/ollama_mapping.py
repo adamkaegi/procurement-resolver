@@ -1,12 +1,12 @@
 """Real LLM-backed mapping generation via a local Ollama model.
 
-Companion to generate_mapping.py's offline deterministic scaffold. That
-module has never called a model at all (see docs/DECISIONS.md, "Real LLM
-calls for mapping generation"); this one actually does, against a locally
-running Ollama server rather than a hosted API (Adam's choice -- no API key
-needed, zero marginal cost per call, per the LLM usage policy's "log tokens,
-cost, and latency" requirement: cost is genuinely $0.0 here, not "no model
-configured").
+The generation path: this module prompts a locally running Ollama server
+(no hosted API -- zero marginal cost per call, and the LLM usage policy's
+"log tokens, cost, and latency" requirement is met with genuinely $0.0
+cost) and runs the model's output through generate_mapping.py's validation
+gate, which applies the mapping to real sample rows via the actual
+interpreter. Output that passes is committed for human review before use
+(see docs/DECISIONS.md, "Generated, then reviewed").
 
 Requires `ollama serve` running locally with the requested model already
 pulled (`ollama list` to check). Not exercised by pytest: this repo's own
@@ -44,7 +44,7 @@ EXAMPLE_MAPPING = {
     "source_id": "example_source",
     "mappings": [
         {"canonical": "ocid", "disposition": "mapped", "source_field": "someSolicitationIdColumn",
-         "transform": "direct_or_reference", "confidence": "high", "reasoning": "why this column is the ocid"},
+         "transform": "direct", "confidence": "high", "reasoning": "why this column is the ocid"},
         {"canonical": "awards[].items[].classification.id", "disposition": "derived",
          "source_fields": ["unspsc", "gsin"], "transform": "first_present", "confidence": "medium",
          "reasoning": "two candidate columns, take whichever is present"},
@@ -70,7 +70,7 @@ For each canonical field, choose "disposition":
 
 Every single mapping entry, INCLUDING every "unmapped" one, MUST still include a "transform" key. For "unmapped" entries always set "transform": "unmapped" -- never omit the transform key.
 
-"transform" must be one of exactly these registered names (do not invent others):
+"transform" must be one of exactly these registered names (do not invent others; do not use "constant" -- it is reserved for human-reviewed configs):
 {json.dumps(sorted(TRANSFORMS.keys()))}
 
 "confidence" must be "high", "medium", or "low". "reasoning" is one short sentence explaining your choice using the real column names and sample values below -- not a generic sentence.

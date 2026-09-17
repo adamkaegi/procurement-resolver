@@ -3,14 +3,14 @@ jurisdiction: federal
 mapping_version: phase-1-manual
 mappings:
   - canonical: ocid
-    source_field: solicitationNumber-numeroSollicitation
-    transform: direct_or_reference
+    source_fields: [solicitationNumber-numeroSollicitation, referenceNumber-numeroReference]
+    transform: first_present
   - canonical: id
-    source_field: contractNumber-numeroContrat
-    transform: direct_or_reference
+    source_fields: [contractNumber-numeroContrat, referenceNumber-numeroReference]
+    transform: first_present
   - canonical: date
-    source_field: contractAwardDate-dateAttributionContrat
-    transform: parse_date_or_publication_date
+    source_fields: [contractAwardDate-dateAttributionContrat, publicationDate-datePublication]
+    transform: parse_date
   - canonical: buyer.name
     source_field: contractingEntityName-nomEntitContractante-eng
     transform: direct
@@ -21,11 +21,11 @@ mappings:
     source_fields: [contractAmount-montantContrat, totalContractValue-valeurTotaleContrat]
     transform: parse_nonnegative_currency_with_total_fallback
   - canonical: awards[].value.currency
-    source_field: contractCurrency-contratMonnaie
+    source_fields: [contractCurrency-contratMonnaie]
     transform: default_cad
   - canonical: awards[].description
-    source_field: awardDescription-descriptionAttribution-eng
-    transform: direct_or_title
+    source_fields: [awardDescription-descriptionAttribution-eng, title-titre-eng]
+    transform: first_present
   - canonical: awards[].items[].classification.id
     source_fields: [unspsc-unspsc, gsin-nibs]
     transform: first_present

@@ -32,65 +32,71 @@ the code is shaped the way it is.
 - Consequence: mapping behavior for these sources is fully reviewable, and
   gives the mapping generator something real to be measured against.
 
-### Mapping application is hardcoded per source, not driven by `mapping.yaml`
+### `mapping.yaml` is executed, not decorative
 
-`mapping.yaml` is written and reviewed like config, but `src/apply_mapping.py`
-does not read it at ingestion time — this is the single most important
-thing to understand about how this pipeline actually runs.
+- Context: for most of this project's life, `apply_mapping.py` branched on
+  `source_id` with hardcoded column reads, and `mapping.yaml` was reviewable
+  documentation of intent rather than the thing that ran — a disclosed
+  trade-off (the risk of rewriting what produced every warehouse row was
+  judged worse than the config-vs-code gap). That gap was this repo's
+  biggest plan-vs-code divergence.
+- Decision: replace the per-source branches with a generic interpreter.
+  Each `mapping.yaml` entry names its canonical field, its source column(s)
+  — fallback order declared as `source_fields` lists in the config, not
+  encoded in transform names — and a transform that is now a real function
+  in `transform_registry.py` (`direct`/`first_present`, `parse_date`,
+  `parse_currency`, `parse_nonnegative_currency_with_total_fallback`,
+  `default_cad`, `constant`). Structural fields no source publishes
+  (initiationType, tag, buyer.id, jurisdiction, award id/date mirroring,
+  provenance) are supplied uniformly by the interpreter. The Ottawa
+  document sources stay code-driven extractors by design — they parse
+  documents, not columns.
+- Alternative rejected: keeping the hardcoded dispatch permanently, or
+  migrating without an equivalence check.
+- Consequence: verified by rebuilding every CSV source through the
+  interpreter and comparing against the previous warehouse — all four
+  sources byte-identical except the provenance fields that legitimately
+  changed (`field_origins` is now more complete, `mapping_version` for the
+  reviewed mapping). A new CSV source now needs only a `mapping.yaml`, no
+  Python branch — a mapping without a release identity (`ocid`/`id`) fails
+  loudly. The validation gate got stronger for free: `validate_sample`
+  applies a candidate mapping through this same interpreter, so a mapping
+  that is structurally well-formed but produces invalid records now fails
+  the gate (the previous gate validated a hardcoded assembly instead, and
+  passed mappings the interpreter would have rejected).
 
-- Context: `sources/*/mapping.yaml` is committed, reviewable, per-field
-  config (`canonical` → `source_field` → `transform`). The natural
-  expectation is that applying a mapping means interpreting that config
-  generically.
-- Decision: `apply_mapping.py::_release()` instead branches on
-  `source_id` directly (`if source_id == "federal_contracts": ...` /
-  `elif source_id == "canadabuys_award_notices": ...` / etc.) and reads
-  specific column names inline. `extract_documents.py` (Ottawa PDFs) and
-  `ingest_ottawa_open_data.py` (Ottawa Excel workbooks) don't consult a
-  `mapping.yaml` at all — extraction there is code, not config, by design.
-  `mapping.yaml` currently functions as reviewable documentation of intent,
-  not executable config: several `transform:` values written into the
-  committed YAML files (e.g. `constant_ottawa`, `stable_source_contract_id`)
-  aren't in `src/transform_registry.py`'s registry at all, which only
-  matters because nothing ever loads and validates them against it.
-- Alternative rejected: building a generic mapping-yaml interpreter now,
-  which would change what actually produces every row in the warehouse — a
-  bigger, riskier rewrite than the config-vs-code gap it would close.
-- Consequence: each source's real transformation logic lives in
-  `apply_mapping.py`, `extract_documents.py`, and `ingest_ottawa_open_data.py`
-  — read those, not `mapping.yaml`, to see what actually happens to a row.
-  `mapping.yaml` is still useful as the human-reviewed record of intended
-  field mapping per source.
+### Generated, then reviewed
 
-### Offline deterministic mapping scaffold, then a real local-LLM path alongside it
-
-- Context: a mapping generator needs a runnable contract and validation gate
-  before a model is wired to it.
-- Decision: `src/generate_mapping.py::propose_mapping()` is an offline,
-  deterministic proposal engine (field-name matching against a fixed hint
-  table, conservative abstention) that exercises the exact output contract
-  and validation gate a real model output has to pass — and logs zero
-  tokens/cost because no model ran, not because cost was omitted.
-  `src/ollama_mapping.py` is a separate module that calls a real, locally
-  running Ollama model (`qwen2.5:7b-instruct`) against real source data,
-  reusing `generate_mapping.py`'s `validate_mapping`/`validate_sample`
-  unchanged as the acceptance gate. Kept as two modules on purpose: pytest
-  exercises only the deterministic one (code correctness, no live model
-  dependency), while the Ollama path is a genuine LLM generation run, logged
-  to `evals/results/llm_calls.jsonl` with real tokens, latency, and
-  `cost_usd: 0.0` (true zero — local inference, not "no model configured").
-- Alternative rejected: claiming an unavailable external model produced the
-  offline scaffold's output. Also rejected: a hosted API for the real run —
-  a local model was chosen specifically for zero marginal cost per call.
-- Consequence: `sources/canadabuys_contract_history/mapping.yaml` is real,
-  unedited Ollama output (first attempt failed validation on a misremembered
-  column name, `gsin` instead of `gsin-nibs`; the retry self-corrected and
-  passed). Left uncorrected on purpose — this project's own success
-  criterion is generator output that was never hand-fixed. Real gaps in that
-  output are real: the model left a usable description column unmapped, and
-  picked a semantically loose (though harmless) transform once. Documented
-  here rather than smoothed over, because a disclosed real limitation is
-  more useful than a clean-looking result that isn't real.
+- Context: `sources/canadabuys_contract_history/mapping.yaml` was committed
+  as unedited Ollama output (`qwen2.5:7b-instruct`, generation logged in
+  `evals/results/llm_calls.jsonl`), under a "never hand-corrected" framing.
+  Once mapping.yaml became executable, that framing collided with reality:
+  executed literally, the model's mapping fails ingestion — it left
+  schema-required `ocid` unmapped, mapped the amount to a single column
+  with no negative-amendment fallback (amendment rows would fail the
+  schema's `minimum: 0`), left a populated description column unmapped, and
+  chose a sparsely-populated identifier column.
+- Decision: adopt the pipeline the spec always drew — "generate mapping
+  (once/source) → human review" — with the review allowed to correct.
+  The unedited model output is archived beside the executable mapping
+  (`mapping.ollama_unedited.yaml`) with each correction named in the
+  reviewed file's header, and the generation's real tokens/latency/cost
+  stay logged. The offline deterministic proposal scaffold (a hint table
+  containing the actual sources' column names — a lookup of known answers
+  that a close reader would rightly distrust) was deleted along with its
+  provisional outputs; `generate_mapping.py` is now purely the validation
+  gate, and `ollama_mapping.py` is the one generation path.
+- Alternative rejected: executing the model's mapping untouched (drops or
+  degrades real records to preserve a claim about process); keeping that
+  one source hardcoded as an exception (keeps the gap the interpreter
+  exists to close).
+- Consequence: the "never hand-corrected" claim is retired — what's
+  demonstrated instead is the honest loop: real model generation, a gate
+  that now catches its real failure modes (the archived unedited mapping
+  fails the strengthened gate with 8 errors; the reviewed one passes), and
+  a reviewable diff between what the model proposed and what a human
+  shipped. That diff is a better artifact about LLM-generated adapters
+  than an untouched-but-broken mapping was.
 
 ## Ottawa: licence verification and extraction
 

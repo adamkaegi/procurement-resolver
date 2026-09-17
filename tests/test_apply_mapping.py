@@ -140,20 +140,47 @@ def test_canadabuys_contract_history_negative_amount_falls_back_to_total_value(t
     assert releases[0]["awards"][0]["suppliers"][0]["name"] == "Vendor D Operating"
 
 
-def test_unknown_source_id_raises_instead_of_silently_misapplying(tmp_path):
-    # A new source must get its own explicit branch; falling through to
-    # another source's column logic would silently produce garbage records.
+def test_mapping_without_release_identity_raises(tmp_path):
+    # A mapping that doesn't say where ocid/id come from can't produce
+    # identifiable records and must fail loudly, not emit garbage.
     csv_path = tmp_path / "mystery.csv"
     csv_path.write_text("colA,colB\nvalue1,value2\n")
     config_path = tmp_path / "mapping.yaml"
     config_path.write_text(
-        "source_id: not_a_real_source\n"
+        "source_id: incomplete_source\n"
         "jurisdiction: federal\n"
         "mapping_version: test\n"
-        "mappings: []\n"
+        "mappings:\n"
+        "  - canonical: buyer.name\n"
+        "    source_field: colA\n"
+        "    transform: direct\n"
     )
-    with pytest.raises(ValueError, match="no mapping implementation"):
+    with pytest.raises(ValueError, match="release identity"):
         ingest_csv(csv_path, config_path)
+
+
+def test_any_new_source_works_through_config_alone(tmp_path):
+    # The interpreter is generic: a brand-new source needs only a
+    # mapping.yaml, no Python branch.
+    csv_path = tmp_path / "new_source.csv"
+    csv_path.write_text("ref,vendor,total,when\nR-1,New Vendor Ltd.,1500,2024-03-01\n")
+    config_path = tmp_path / "mapping.yaml"
+    config_path.write_text(
+        "source_id: brand_new_source\n"
+        "jurisdiction: federal\n"
+        "mapping_version: test\n"
+        "mappings:\n"
+        "  - {canonical: ocid, source_field: ref, transform: direct}\n"
+        "  - {canonical: id, source_field: ref, transform: direct}\n"
+        "  - {canonical: date, source_field: when, transform: parse_date}\n"
+        "  - {canonical: 'awards[].suppliers[].name', source_field: vendor, transform: direct}\n"
+        "  - {canonical: 'awards[].value.amount', source_field: total, transform: parse_currency}\n"
+    )
+    releases = ingest_csv(csv_path, config_path)
+    assert len(releases) == 1
+    assert releases[0]["ocid"] == "R-1"
+    assert releases[0]["awards"][0]["value"]["amount"] == 1500.0
+    assert releases[0]["buyer"]["name"] == "Unknown"  # unmapped -> structural fallback
 
 
 def test_ingest_csv_respects_record_limit(tmp_path):

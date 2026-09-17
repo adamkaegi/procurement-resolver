@@ -77,7 +77,7 @@ These thresholds are a first-class finding. Any cross-jurisdictional total is co
 
 ### Success criteria
 1. Six or more sources ingest and validate against the canonical schema, spanning all three levels of government.
-2. At least three sources were mapped by the generator and never hand-corrected.
+2. At least one source's field mapping is LLM-generated and human-reviewed, with the unedited model output preserved beside the reviewed config and every generation logged with tokens, cost, and latency.
 3. A single command reproduces the warehouse and its resolution/coverage tables end to end, deterministically.
 4. The agent answers a cross-level question with confidence attached, and declines a question the coverage cannot support, in the same demo.
 5. The failure analysis names at least ten specific failures with root causes.
@@ -187,10 +187,10 @@ procurement-resolver/
   sources/
     <source_id>/
       source.yaml       fetch config, licence, jurisdiction, thresholds, notes
-      mapping.yaml      generated or hand-written, then reviewed
+      mapping.yaml      executable field mapping; generated or hand-written, then reviewed
   src/
     fetch.py
-    generate_mapping.py       mapping proposal + validation gate
+    generate_mapping.py       mapping validation gate
     ollama_mapping.py         real local-LLM mapping generation
     extract_documents.py      Ottawa PDF -> structured records
     ingest_ottawa_open_data.py  Ottawa Excel workbooks -> structured records

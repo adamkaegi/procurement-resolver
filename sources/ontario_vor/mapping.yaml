@@ -3,7 +3,7 @@ jurisdiction: "on"
 encoding: cp1252
 skip_rows: 2
 required_source_field: Vendor of Record (VOR) Number
-buyer_name: Ontario Government
+classification_scheme: VOR
 mapping_version: phase-1-active-vor
 mappings:
   - canonical: ocid
@@ -16,20 +16,25 @@ mappings:
     source_field: Start Date
     transform: parse_date
   - canonical: buyer.name
-    source_field: source_config
-    transform: constant_ontario_government
+    transform: constant
+    constant: Ontario Government
   - canonical: awards[].suppliers[].name
     source_field: Qualified Vendor
     transform: direct
   - canonical: awards[].description
     source_field: Vendor of Record (VOR) Name
     transform: direct
+  # The source publishes no per-transaction value; zero is the documented
+  # placeholder (see this source's coverage known_gaps), never inferred.
   - canonical: awards[].value.amount
-    disposition: unmapped
-    transform: none
+    transform: constant
+    constant: 0.0
   - canonical: awards[].value.currency
-    disposition: unmapped
-    transform: none
+    transform: constant
+    constant: CAD
+  - canonical: awards[].items[].classification.id
+    transform: constant
+    constant: VOR
   - canonical: contracts[].period.startDate
     source_field: Start Date
     transform: parse_date
