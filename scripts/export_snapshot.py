@@ -31,7 +31,9 @@ OUT_DIR = ROOT / "demo"
 
 def _gzip_b64(obj) -> str:
     raw = json.dumps(obj, separators=(",", ":")).encode()
-    return base64.b64encode(gzip.compress(raw, compresslevel=9)).decode()
+    # mtime=0: gzip embeds a timestamp in its header by default, which would
+    # make otherwise-identical builds differ by a few bytes.
+    return base64.b64encode(gzip.compress(raw, compresslevel=9, mtime=0)).decode()
 
 
 def export_releases(connection: duckdb.DuckDBPyConnection) -> str:
@@ -42,7 +44,11 @@ def export_releases(connection: duckdb.DuckDBPyConnection) -> str:
         "json_extract(record, '$.awards[0].value.amount')::DOUBLE, "
         "substr(json_extract_string(record, '$.date'), 1, 10), "
         "json_extract_string(record, '$.awards[0].description'), ocid "
-        "FROM releases"
+        "FROM releases "
+        # Fully deterministic output order (ocid alone isn't unique in the
+        # federal sources), so identical warehouses build byte-identical
+        # snapshots -- same property scripts/rebuild.py already guarantees.
+        "ORDER BY source_id, ocid, CAST(record AS VARCHAR)"
     ).fetchall()
     data = [
         {"s": s, "j": j, "b": b, "v": v, "a": a, "d": d, "t": (t or "")[:200], "o": o}
@@ -57,7 +63,8 @@ def export_entities(connection: duckdb.DuckDBPyConnection) -> str:
     by_entity: dict[str, set[str]] = defaultdict(set)
     for entity_id, source_id in rows:
         by_entity[entity_id].add(jurisdiction_map.get(source_id))
-    cross_entities = [eid for eid, js in by_entity.items() if len(js) > 1]
+    # Sorted for deterministic output; SQL DISTINCT order isn't guaranteed.
+    cross_entities = sorted(eid for eid, js in by_entity.items() if len(js) > 1)
 
     entities_out = []
     for entity_id in cross_entities:
@@ -73,12 +80,16 @@ def export_entities(connection: duckdb.DuckDBPyConnection) -> str:
             "decline_reason": exposure.decline_reason,
             "exposures": [e.model_dump() for e in exposure.exposures],
         })
-    entities_out.sort(key=lambda e: e["contract_count"], reverse=True)
+    # entity_id tiebreak keeps equal contract_counts in a stable order.
+    entities_out.sort(key=lambda e: (-e["contract_count"], e["entity_id"]))
     return _gzip_b64(entities_out)
 
 
 def export_coverage(connection: duckdb.DuckDBPyConnection) -> str:
-    entries = [e.model_dump() for e in tools.coverage(connection).entries]
+    entries = sorted(
+        (e.model_dump() for e in tools.coverage(connection).entries),
+        key=lambda e: e["source_id"],
+    )
     return json.dumps(entries, separators=(",", ":"))
 
 

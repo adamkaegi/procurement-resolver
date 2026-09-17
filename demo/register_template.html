@@ -127,6 +127,14 @@
     font-size: 16.5px;
   }
   header.page p.lede b { color: var(--text); font-weight: 600; }
+  .repo-line { margin: 16px 0 0; }
+  .repo-line a, footer .note a {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12px; letter-spacing: 0.02em;
+    color: var(--brass-strong); text-decoration: none;
+    border-bottom: 1px solid var(--line-strong);
+  }
+  .repo-line a:hover, footer .note a:hover { border-bottom-color: var(--brass-strong); }
 
   .stat-strip {
     display: grid;
@@ -317,6 +325,7 @@
         disclosure thresholds. This is what it looks like once a vendor name is <b>resolved</b> across all of
         them — with the confidence, and the gaps, attached rather than hidden.
       </p>
+      <p class="repo-line"><a href="https://github.com/adamkaegi/procurement-resolver">View source &amp; docs on GitHub &rarr;</a></p>
       <div class="stat-strip" id="statStrip"></div>
     </div>
   </header>
@@ -398,6 +407,7 @@
         publishes no per-transaction value by design; a handful of other $0 rows are source data artifacts).
         Vendor resolution is automated normalized/fuzzy name-matching, not a legal-identity lookup — treat every
         match by its stated confidence, not as ground truth. Static snapshot generated from data/warehouse.duckdb.
+        Source, pipeline, and decision log: <a href="https://github.com/adamkaegi/procurement-resolver">github.com/adamkaegi/procurement-resolver</a>.
       </div>
     </div>
   </footer>
@@ -415,8 +425,10 @@ const J_LABEL = { federal: "Federal", on: "Ontario", ottawa: "Ottawa" };
 const SRC_LABEL = {
   federal_contracts: "Federal contracts (proactive disclosure)",
   canadabuys_award_notices: "CanadaBuys award notices",
+  canadabuys_contract_history: "CanadaBuys contract history",
   ontario_vor: "Ontario VOR arrangements",
-  ottawa_contracts_awarded: "Ottawa delegation of authority",
+  ottawa_contracts_awarded: "Ottawa delegated authority (2023 on, PDF reports)",
+  ottawa_historical_contracts: "Ottawa delegated authority — historical (2020–2022, Excel)",
 };
 
 function b64ToBytes(b64) {
