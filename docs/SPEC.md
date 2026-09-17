@@ -2,14 +2,14 @@
 
 **Author:** Adam Kaegi
 **Version:** 2 (narrowed to the National Capital Region; agent layer added)
-**Purpose of this document:** two audiences. Mentors should read Parts 1–3 and answer the questions in Part 11. Claude Code should read Parts 4–10 and start at Part 10.
+**Purpose of this document:** Parts 1–3 give the framing and scope; Parts 4–10 are the build detail; Parts 11–13 cover risks, the resume framing, and the working rules.
 
 > This is the original design spec, written and committed before the build
 > started. It has since been updated in place where later decisions changed
-> scope — the hand-labelled evaluation sets were cut outright (not left
-> pending), and the source-count target and architecture tree were trimmed
-> to what was actually pursued — so acceptance tests and metrics below say
-> what is real rather than silently going stale. For what actually exists
+> scope — the scored evaluation sets were cut outright (not left pending),
+> and the source-count target and architecture tree were trimmed to what
+> was actually pursued — so acceptance tests and metrics below say what is
+> real rather than silently going stale. For what actually exists
 > today, see [`README.md`](../README.md) and [`docs/PROGRESS.md`](PROGRESS.md).
 
 ---
@@ -73,7 +73,7 @@ These thresholds are a first-class finding. Any cross-jurisdictional total is co
 - A user-facing UI beyond a CLI and a demo notebook
 - Directors / beneficial-ownership graph. Registry linkage is limited to name resolution only
 - French-language sources. Dropped with the other provinces; note this removes a whole failure class from the eval
-- Formal hand-labelled evaluation sets (mapping corrections for held-out sources, ~200 vendor-resolution pairs, 40 agent questions) and the precision/recall/refusal-rate percentages that depend on them. Decided against spending the labelling weekend; reliability is demonstrated through logged decisions, a disclosed failure catalogue, and live-verified demos instead of a scored percentage.
+- A scored evaluation set, and the precision/recall/refusal-rate percentages that depend on one. Reliability is demonstrated through logged decisions, a disclosed failure catalogue, and live-verified demos instead of a scored percentage.
 
 ### Success criteria
 1. Six or more sources ingest and validate against the canonical schema, spanning all three levels of government.
@@ -302,7 +302,7 @@ Per generation: wall-clock, input/output tokens, cost, retries, validation outco
 Each of these is a row in the failure catalogue. Ten-plus specific failures with root causes is a deliverable.
 
 ### Metrics
-No hand-labelled pair set (Part 3 scope cut) — report adjudication band width, proportion of pairs adjudicated, and cost per adjudicated pair instead of precision/recall. Resolution quality is demonstrated through the failure catalogue above (each hard case root-caused) and any disclosed scoring-function false positive, not a percentage.
+No scored pair set (Part 3 scope cut) — report adjudication band width, proportion of pairs adjudicated, and cost per adjudicated pair instead of precision/recall. Resolution quality is demonstrated through the failure catalogue above (each hard case root-caused) and any disclosed scoring-function false positive, not a percentage.
 
 ---
 
@@ -328,7 +328,7 @@ Every tool that touches an entity returns resolution confidence alongside the an
 Below a configured confidence threshold, `cross_level_exposure` and `compare_buyers` return candidates and decline to aggregate. The agent's job is then to explain why. Cross-jurisdictional totals are exactly where a confident wrong answer does the most damage, because unified-looking data hides a guessed join.
 
 ### Agent demo
-No formal hand-labelled question set (Part 3 scope cut). Demonstrate, live
+No scored question set (Part 3 scope cut). Demonstrate, live
 against the real warehouse, the same three buckets a scored set would have
 measured:
 - **A — answerable.** Resolution is strong and coverage supports it.
@@ -344,53 +344,51 @@ has one, scored or not.
 
 ## Part 10 — Build plan
 
-Seven weekends. Each phase has an acceptance test; do not proceed until it passes.
+Each phase has an acceptance test; do not proceed until it passes.
 
-### Phase 0 — Foundations (½ day)
+### Phase 0 — Foundations
 Scaffold repo, pin deps, write `ocds_subset.json`.
 **Accept when:** the archived CanadaBuys OCDS pilot data validates against your subset. If it doesn't, the subset is wrong. This is why source #4 exists.
 
-### Phase 1 — Manual adapters (weekend 1)
+### Phase 1 — Manual adapters
 Hand-write `mapping.yaml` for three sources: one federal, one Ontario, one simple. No LLM yet.
 **Accept when:** all three ingest, validate, load; one SQL query returns records from all three with provenance intact.
 > You cannot evaluate generated mappings until you know what a correct one looks like. Skipping this is the most likely way the project goes wrong.
 
 ### Phase 2 — Skipped by decision
 
-Originally scoped as a full weekend of hand-labelling held-out mapping
-corrections, ~200 vendor-resolution pairs, and 40 agent questions, so every
-later percentage would have a real baseline. Decided not to spend it — see
-Part 3, "Explicitly out of scope." Phases 3, 5, and 6 below adjust their
-acceptance tests accordingly: reproducibility and live-demonstrated
-behavior in place of precision/recall/refusal-rate against a held-out
-label set.
+Originally scoped as building a scored evaluation set, so every later
+percentage would have a real baseline. Cut — see Part 3, "Explicitly out
+of scope." Phases 3, 5, and 6 below adjust their acceptance tests
+accordingly: reproducibility and live-demonstrated behavior in place of
+precision/recall/refusal-rate against a held-out set.
 
-### Phase 3 — Mapping generator (weekend 3)
+### Phase 3 — Mapping generator
 `generate_mapping.py`, transform registry, validation gate.
 **Accept when:** it reproduces the three hand-written mappings at a measurable rate and produces a passing mapping for one held-out source with no human edits.
 
-### Phase 4 — Ottawa document extraction (weekend 4)
+### Phase 4 — Ottawa document extraction
 `extract_documents.py` against Delegation of Authority reports.
 **Accept when:** extracted records validate, carry `extraction_conf`, and per-document cost is logged.
-> Highest-risk phase. If the reports resist extraction, cap effort at one weekend, report the failure honestly, and proceed with two levels instead of three. A documented failure beats a slipped timeline.
+> Highest-risk phase. If the reports resist extraction, cap the effort, report the failure honestly, and proceed with two levels instead of three. A documented failure beats an open-ended dig.
 
-### Phase 5 — Resolution (weekend 5)
+### Phase 5 — Resolution
 `resolve.py`, entity store, coverage table.
-**Accept when:** the entity/entity_link/coverage tables build end-to-end; adjudication band width and proportion of pairs adjudicated are logged; specific hard resolution cases are catalogued with root causes. No hand-labelled pair set (Part 3 scope cut), so no precision/recall figure is reported here.
+**Accept when:** the entity/entity_link/coverage tables build end-to-end; adjudication band width and proportion of pairs adjudicated are logged; specific hard resolution cases are catalogued with root causes. No scored pair set (Part 3 scope cut), so no precision/recall figure is reported here.
 
-### Phase 6 — MCP server and agent (weekend 6)
+### Phase 6 — MCP server and agent
 `server.py`, tools, refusal logic, a live agent demo.
-**Accept when:** the MCP server's typed tools are live against the real warehouse, and one session demonstrates a confident cross-level answer alongside a correct refusal. No hand-labelled agent-question set (Part 3 scope cut), so no refusal-rate percentage is reported here.
+**Accept when:** the MCP server's typed tools are live against the real warehouse, and one session demonstrates a confident cross-level answer alongside a correct refusal. No scored question set (Part 3 scope cut), so no refusal-rate percentage is reported here.
 
-### Phase 7 — Confidence gating and writeup (weekend 7)
+### Phase 7 — Confidence gating and writeup
 Sweep the resolution confidence threshold and report how the auto-accept / adjudication-band / auto-reject split moves, with a spot-check of a sample from each band.
 **Accept when:** you can state a real sentence of the form *"raising the auto-accept threshold from X to Y moved N pairs from auto-accepted to adjudicated"* — real behavior, not a silent-error curve scored against a label set that doesn't exist.
 
 `docs/WRITEUP.md` structure: one concrete failure and its downstream cost → the design decision that came out of it → the numbers → the ten-plus failure catalogue → how this generalizes beyond procurement → architecture last, if at all.
 
 ### Headline metrics
-No hand-labelled set to score field precision/recall, resolution P/R, or
-agent refusal rate against (Part 3 scope cut) — those need one and are not
+There is no scored set to measure field precision/recall, resolution P/R,
+or agent refusal rate against (Part 3 scope cut), so those are not
 reported as percentages anywhere in this project. What's reported instead:
 
 | Metric | Definition |
@@ -402,33 +400,11 @@ reported as percentages anywhere in this project. What's reported instead:
 
 ---
 
-## Part 11 — Questions for mentors
-
-**Framing**
-1. Is "silent-error rate" legible to someone who hasn't read this spec, or does it need renaming?
-2. Does a procurement corpus read as civic-tech in a way that hurts at non-government-facing employers? Is one paragraph of generalization enough?
-3. Do the resume lines in Part 13 hook, or read as a data-engineering task?
-
-**Scope**
-4. Seven weekends while job hunting. Which phase would you cut first? My answer is Phase 4 (Ottawa extraction) — is that right, or does losing the third level gut the premise?
-5. Is narrowing to one metro the right call, or does it look small next to a multi-province version?
-6. Should this be deployed, or is a reproducible local build enough?
-
-**Rigor**
-7. Is skipping the hand-labelled evaluation set the right call, or does a project whose whole thesis is "measured reliability" undermine itself by shipping without a single measured percentage?
-8. Am I fooling myself anywhere — is there a path where this produces good-looking numbers that don't mean anything?
-9. Is the threshold-difference problem ($10K / $25K / $100K) handled honestly by putting it in a coverage table, or does it undermine cross-level comparison entirely?
-
-**The known gap**
-10. This project has no users. Is that fatal for an FDE application, and what's the cheapest way to get two or three real ones?
-
----
-
-## Part 12 — Risks
+## Part 11 — Risks
 
 | Risk | Mitigation |
 |---|---|
-| Ottawa reports resist extraction | Cap at one weekend; report as a finding; ship with two levels |
+| Ottawa reports resist extraction | Cap the effort; report as a finding; ship with two levels |
 | Threshold differences make totals misleading | Coverage table; agent must attach caveats; never aggregate silently across levels |
 | Federal registry misses Ontario-incorporated firms | Report registry-anchored and vendor-to-vendor resolution as separate modes |
 | Sources move or go offline | Archive raw on first fetch; never re-fetch for reproducibility |
@@ -439,15 +415,15 @@ reported as percentages anywhere in this project. What's reported instead:
 
 ---
 
-## Part 13 — The resume lines
+## Part 12 — The resume lines
 
-Draft. No percentage claims — a hand-labelled eval set was scoped out (Part 3), so there's no precision or refusal-rate figure to quote, drafted or otherwise.
+Draft. No percentage claims — a scored eval set was cut from scope (Part 3), so there's no precision or refusal-rate figure to quote, drafted or otherwise.
 
 > **Cross-Jurisdictional Procurement Resolver** — Unified federal, Ontario, and City of Ottawa contract data (7+ sources, CSV to committee PDFs) into one OCDS schema using LLM-generated adapters; resolved vendors across jurisdictions with confidence and evidence attached to every match. MCP agent answers cross-level exposure questions and correctly declines the ones the coverage or confidence can't support, live-demonstrated against the real data rather than scored against a held-out set.
 
 ---
 
-## Part 14 — Notes for Claude Code
+## Part 13 — Notes for Claude Code
 
 - Start at **Phase 0**. Phase 1 is a prerequisite for everything else; the project fails without it. Phase 2 was skipped by decision (Part 3) — do not attempt to backfill it.
 - Verify every source URL is live before writing an adapter. Do not trust URLs in this document.
