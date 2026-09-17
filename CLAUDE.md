@@ -20,9 +20,9 @@ serves a number in the eval harness.
 ## Absolute rules
 
 1. **Never fabricate a metric.** No precision, recall, cost, or latency figure
-   appears in any file unless `evals/run_eval.py` produced it and wrote it to
-   `evals/results/`. If asked to write a README or summary before the eval has
-   run, use `TBD` — never a plausible placeholder.
+   appears in any file unless an actual eval or instrumentation run produced
+   it and wrote it to `evals/results/`. If asked to write a README or summary
+   before such a run exists, use `TBD` — never a plausible placeholder.
 
 2. **Source records are immutable.** Raw payloads under `data/raw/` are never
    modified after fetch. Vendor names are never normalized in place. Resolution

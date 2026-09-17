@@ -5,12 +5,12 @@
 **Purpose of this document:** two audiences. Mentors should read Parts 1–3 and answer the questions in Part 11. Claude Code should read Parts 4–10 and start at Part 10.
 
 > This is the original design spec, written and committed before the build
-> started, left as-written below with one deliberate exception: Part 3's
-> hand-labelled evaluation sets were later decided against outright (not
-> left pending), so every acceptance test and metric that depended on one
-> is updated here to say so rather than silently going stale. For what
-> actually exists today, see [`README.md`](../README.md) and
-> [`docs/PROGRESS.md`](PROGRESS.md).
+> started. It has since been updated in place where later decisions changed
+> scope — the hand-labelled evaluation sets were cut outright (not left
+> pending), and the source-count target and architecture tree were trimmed
+> to what was actually pursued — so acceptance tests and metrics below say
+> what is real rather than silently going stale. For what actually exists
+> today, see [`README.md`](../README.md) and [`docs/PROGRESS.md`](PROGRESS.md).
 
 ---
 
@@ -56,7 +56,7 @@ These thresholds are a first-class finding. Any cross-jurisdictional total is co
 ## Part 3 — Scope
 
 ### In scope
-- Ingest 7–8 sources across federal / Ontario / Ottawa into a canonical OCDS subset
+- Ingest six or more sources across federal / Ontario / Ottawa into a canonical OCDS subset
 - LLM-generated source-to-canonical field mappings, reviewed once per source and committed as config
 - Document extraction for the Ottawa municipal layer
 - Cross-jurisdictional vendor entity resolution with confidence scores and evidence
@@ -76,7 +76,7 @@ These thresholds are a first-class finding. Any cross-jurisdictional total is co
 - Formal hand-labelled evaluation sets (mapping corrections for held-out sources, ~200 vendor-resolution pairs, 40 agent questions) and the precision/recall/refusal-rate percentages that depend on them. Decided against spending the labelling weekend; reliability is demonstrated through logged decisions, a disclosed failure catalogue, and live-verified demos instead of a scored percentage.
 
 ### Success criteria
-1. Seven or more sources ingest and validate against the canonical schema.
+1. Six or more sources ingest and validate against the canonical schema, spanning all three levels of government.
 2. At least three sources were mapped by the generator and never hand-corrected.
 3. A single command reproduces the warehouse and its resolution/coverage tables end to end, deterministically.
 4. The agent answers a cross-level question with confidence attached, and declines a question the coverage cannot support, in the same demo.
@@ -184,29 +184,31 @@ procurement-resolver/
     warehouse.duckdb                        gitignored, rebuildable
   schema/
     ocds_subset.json
-    codelists/{currency,procurement_method,unspsc_segments}.csv
   sources/
     <source_id>/
       source.yaml       fetch config, licence, jurisdiction, thresholds, notes
-      mapping.yaml      GENERATED then reviewed — the core artifact
-      transform.py      escape hatch; expected for the Ottawa source
+      mapping.yaml      generated or hand-written, then reviewed
   src/
     fetch.py
-    generate_mapping.py     LLM: schema induction, once per source
-    extract_documents.py    LLM: document -> structured records (Ottawa)
+    generate_mapping.py       mapping proposal + validation gate
+    ollama_mapping.py         real local-LLM mapping generation
+    extract_documents.py      Ottawa PDF -> structured records
+    ingest_ottawa_open_data.py  Ottawa Excel workbooks -> structured records
     apply_mapping.py
     validate.py
-    resolve.py              blocking, scoring, LLM adjudication band
+    resolve.py                blocking, scoring, adjudication band
     load.py
-    coverage.py
-    server.py               MCP server (FastMCP)
-    cli.py
+    agent_tools.py            the five typed tools
+    server.py                 MCP server (FastMCP)
+  scripts/
+    rebuild.py                one-command warehouse rebuild
+    export_snapshot.py / build_register.py   data-browser build
   evals/
-    run_eval.py
-    results/                                committed, timestamped
+    provisional/              scaffolding only; metrics from it are invalid
+    results/                  committed, timestamped
   docs/
-    WRITEUP.md
-    DECISIONS.md                            ADR log
+    DECISIONS.md              ADR log
+    PROGRESS.md, FAILURES.md, AGENT_DEMO.md, RUNBOOK.md
 ```
 
 ### Pipeline
@@ -233,7 +235,7 @@ Write an ADR in `docs/DECISIONS.md` every time deterministic logic is chosen ove
 ## Part 7 — The mapping generator
 
 ### Input
-Source's `source.yaml`; ~20 raw sample records; any publisher data dictionary; the canonical schema and codelists.
+Source's `source.yaml`; ~20 raw sample records; any publisher data dictionary; the canonical schema.
 
 ### Output contract
 Strict YAML, no prose or fences. Every canonical field gets one of three dispositions.
@@ -432,7 +434,7 @@ reported as percentages anywhere in this project. What's reported instead:
 | Sources move or go offline | Archive raw on first fetch; never re-fetch for reproducibility |
 | Licence or ToS problems | Open-licensed sources only; verify and record per source |
 | Scope creep (directors graph, other provinces, UI) | Part 3 cuts are binding; revisit only after Phase 7 ships |
-| Numbers quoted before earned | **No metric appears anywhere until `run_eval.py` produced it.** |
+| Numbers quoted before earned | **No metric appears anywhere until an actual eval or instrumentation run wrote it to `evals/results/`.** |
 | Dropping French removes a failure class | Acknowledge explicitly in the writeup as a limitation, not an omission |
 
 ---

@@ -66,8 +66,8 @@ unrelated records in three separate CSVs. Stantec Consulting Ltd is the
 largest, with 129 linked contracts across all three jurisdictions.
 
 Entity links currently persisted are exact-normalized matches only
-(confidence 1.0). Fuzzy and uncertain-band candidates are scored live by
-`resolve.rank_candidates` (what `resolve_vendor` surfaces) but aren't
+(confidence 1.0). Fuzzy and uncertain-band candidates are scored live at
+query time by the `resolve_vendor` tool (`src/agent_tools.py`) but aren't
 written to `entity_link`. The scoring function's known precision limit —
 `token_set_ratio` treats a name that's a strict token superset of another as
 a full match regardless of meaning — is catalogued as `docs/FAILURES.md`

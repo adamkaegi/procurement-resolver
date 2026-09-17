@@ -46,7 +46,7 @@ Run `uv run python scripts/rebuild.py` first if `data/warehouse.duckdb`
 doesn't exist yet — the server raises a clear error naming that command if
 the file is missing.
 
-## 2. A two-part demo in one session (success criterion 5)
+## 2. A two-part demo in one session (success criterion 4)
 
 Ask both of these in the same conversation, back to back.
 
@@ -55,9 +55,9 @@ Ask both of these in the same conversation, back to back.
 > jurisdictions.
 
 Expect: `resolve_vendor` returns several ranked candidates (note some will be
-imperfect matches, e.g. a bare "Bell" scoring as a 1.0/"exact" match — that's
-a known, catalogued resolution artifact, see `docs/FAILURES.md` #17, not a
-bug to hide). Picking the right entity and calling `cross_level_exposure`
+imperfect matches, e.g. a bare "Bell" scoring 1.0 as a "normalized" match —
+that's a known, catalogued resolution artifact, see `docs/FAILURES.md` #17,
+not a bug to hide). Picking the right entity and calling `cross_level_exposure`
 should return `declined: false` with a real per-jurisdiction breakdown,
 including a federal source where some included contracts are $0 and
 explicitly excluded from the total rather than silently zeroed.
