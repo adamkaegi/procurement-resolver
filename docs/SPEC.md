@@ -384,7 +384,7 @@ precision/recall/refusal-rate against a held-out set.
 Sweep the resolution confidence threshold and report how the auto-accept / adjudication-band / auto-reject split moves, with a spot-check of a sample from each band.
 **Accept when:** you can state a real sentence of the form *"raising the auto-accept threshold from X to Y moved N pairs from auto-accepted to adjudicated"* — real behavior, not a silent-error curve scored against a label set that doesn't exist.
 
-`docs/WRITEUP.md` structure: one concrete failure and its downstream cost → the design decision that came out of it → the numbers → the ten-plus failure catalogue → how this generalizes beyond procurement → architecture last, if at all.
+A writeup was planned with this structure — one concrete failure and its downstream cost → the design decision that came out of it → the numbers → the failure catalogue → how this generalizes beyond procurement → architecture last, if at all. It was not written; `docs/DECISIONS.md` and `docs/FAILURES.md` carry that material directly.
 
 ### Headline metrics
 There is no scored set to measure field precision/recall, resolution P/R,

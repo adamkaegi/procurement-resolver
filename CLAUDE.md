@@ -22,7 +22,8 @@ serves a number in the eval harness.
 1. **Never fabricate a metric.** No precision, recall, cost, or latency figure
    appears in any file unless an actual eval or instrumentation run produced
    it and wrote it to `evals/results/`. If asked to write a README or summary
-   before such a run exists, use `TBD` — never a plausible placeholder.
+   before such a run exists, say plainly that the figure is not measured —
+   never a plausible placeholder.
 
 2. **Source records are immutable.** Raw payloads under `data/raw/` are never
    modified after fetch. Vendor names are never normalized in place. Resolution
@@ -36,8 +37,8 @@ serves a number in the eval harness.
 4. **No `run_sql` tool on the MCP server.** Typed tools only, per spec Part 9.
 
 5. **Stop conditions are real.** If a phase's acceptance test fails twice, stop
-   and write a failure report to `docs/BLOCKED.md`. Do not work around it, and
-   do not loosen the acceptance test to make it pass.
+   and record what defeated it as an ADR in `docs/DECISIONS.md`. Do not work
+   around it, and do not loosen the acceptance test to make it pass.
 
 ## LLM usage policy
 

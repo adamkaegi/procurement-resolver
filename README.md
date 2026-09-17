@@ -174,8 +174,8 @@ No `run_sql` tool — typed tools only, per `CLAUDE.md` rule 4.
 483 of them resolved across two or more jurisdictions, with the uncertain
 match band persisted separately and excluded from every total until
 adjudicated), a working MCP server with real refusal logic verified
-against the live warehouse, and
-a real logged local-LLM mapping-generation run in
+against the live warehouse, and a real logged local-LLM
+mapping-generation run in
 [`evals/results/llm_calls.jsonl`](evals/results/llm_calls.jsonl). Full
 detail: [`docs/PROGRESS.md`](docs/PROGRESS.md).
 
@@ -190,11 +190,10 @@ This project's thesis is that a reliability claim needs a number behind it
 (`CLAUDE.md` rule 1: no precision, recall, cost, or latency figure appears
 anywhere unless an eval run produced it) — so stated plainly rather than
 implied: mapping-quality precision/recall, resolution precision/recall, and
-agent refusal-rate are **not measured, by decision**. A formal
-hand-labelled evaluation set was scoped out
-([`docs/SPEC.md`](docs/SPEC.md) Part 3), not left half-finished — the
-decision log, failure catalogue, and live agent demo above are what this
-project uses to demonstrate reliability instead.
+agent refusal-rate are **not measured, by decision**. A scored evaluation
+set was cut from scope ([`docs/SPEC.md`](docs/SPEC.md) Part 3), not left
+half-finished — the decision log, failure catalogue, and live agent demo
+above are what this project uses to demonstrate reliability instead.
 
 ## License
 

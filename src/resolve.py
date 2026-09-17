@@ -270,7 +270,7 @@ def _write_cross_entity_links(
 
     - score >= UPPER_THRESHOLD: an asserted cross-entity link, method
       "normalized", at its real confidence (score/100). This is where the
-      known token-superset auto-accepts land (FAILURES.md #17) -- linked
+      known token-superset auto-accepts land (FAILURES.md A2) -- linked
       with their evidence visible, not silently merged.
     - LOWER < score < UPPER: an unadjudicated candidate, method "fuzzy",
       decision explicitly absent. Persisted so the uncertain band is

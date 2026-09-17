@@ -46,7 +46,7 @@ Run `uv run python scripts/rebuild.py` first if `data/warehouse.duckdb`
 doesn't exist yet — the server raises a clear error naming that command if
 the file is missing.
 
-## 2. A two-part demo in one session (success criterion 4)
+## 2. A two-part demo in one session
 
 Ask both of these in the same conversation, back to back.
 

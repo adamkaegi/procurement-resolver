@@ -96,7 +96,7 @@ def test_classify_pair_labels_true_normalized_equality_as_exact():
 
 
 def test_token_superset_is_rejected_not_matched():
-    # Regression pin for docs/FAILURES.md #17. Under token_set_ratio this
+    # Regression pin for docs/FAILURES.md A2. Under token_set_ratio this
     # pair scored 100.0 and auto-accepted, because one name's tokens are a
     # strict subset of the other's. token_sort_ratio compares full sorted
     # strings, so the extra token costs score and the pair is rejected.
@@ -127,7 +127,7 @@ def test_real_legal_name_variation_still_auto_accepts():
     # "Co.", a dropped "Limited"). Deliberately excludes pairs whose correct
     # label is arguable, e.g. "Northstar" vs "North Star" -- which this
     # scorer accepts at 97.7 but the provisional pair file labels no-match
-    # (see docs/FAILURES.md #18); a test should not silently pick a side in
+    # (see docs/FAILURES.md A3); a test should not silently pick a side in
     # that disagreement.
     for left, right in [
         ("J.L. Richards & Associates Limited", "J L Richards and Associates"),

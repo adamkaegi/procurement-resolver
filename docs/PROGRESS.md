@@ -79,7 +79,7 @@ persisted `entity_token` index rather than scanning every entity.
 The scoring function was switched from `token_set_ratio` to
 `token_sort_ratio` after persisting the band exposed that the former
 auto-accepted 3,958 pairs on token-subset overlap alone — see
-`docs/DECISIONS.md` and `docs/FAILURES.md` #17 (fixed) and #18 (what the
+`docs/DECISIONS.md` and `docs/FAILURES.md` A2 (fixed) and A3 (what the
 fix cost: drastic abbreviations like `CGI Inc.` are now missed).
 
 ## MCP agent

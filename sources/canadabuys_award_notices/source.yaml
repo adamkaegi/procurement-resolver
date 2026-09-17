@@ -7,6 +7,7 @@ value_threshold: 10000
 record_cap: 5000
 notes: Official CanadaBuys complete award-notice CSV; source records are capped before transformation.
 known_gaps:
+  - "Award amounts are frequently absent: 4,427 of 5,000 loaded records carry $0. A group mixing $0 and valued records reports a count over all of them but a total over only the valued subset, with no caveat -- see docs/FAILURES.md A4. Treat any per-contract average over this source as unreliable."
   - "Same $10,000 federal proactive-disclosure threshold as federal_contracts; smaller awards are structurally absent."
   - "Archived raw file has ~786,175 data rows; only the first 5,000 (record_cap) are loaded per the spec's volume cap. This is the first 5,000 rows in file order, not a random sample -- record_count is not the full federal population."
   - "Overlaps and is partially redundant with federal_contracts (spec Part 4, source #2 vs #1); the same award can legitimately appear in both without being a resolution duplicate."

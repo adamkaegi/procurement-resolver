@@ -38,7 +38,7 @@ notes: >-
   filename and derive the period from the document text.
 known_gaps:
   - "Delegation of Authority reports cover procurements over $25,000. A separate Council policy proactively discloses awards of $100,000+ of 'significant public interest'; that separate disclosure is not a source in this warehouse, so Ottawa coverage here is DOA-report coverage, not full City procurement disclosure."
-  - "All eight archived PDF reports extract records; an earlier claim that one was image-only and yielded nothing was a misdiagnosis, now retracted (docs/FAILURES.md #14)."
+  - "All eight archived PDF reports extract records; an earlier claim that one was image-only and yielded nothing was a misdiagnosis, now retracted (docs/FAILURES.md A9)."
   - "A table row spanning a page break used to pick up that page's header/footer text into the vendor name (97 corrupted names). Fixed by stripping known page furniture; some rows legitimately list a roster of firms in one vendor field and are flagged _provenance.multi_vendor_row and excluded from entity resolution rather than split."
   - "Extraction is deterministic text-table parsing, not a machine-readable feed; extraction_conf on each record reflects parser confidence (department/approval-type/rationale all found = 0.95, else 0.85), not a guarantee of correctness. A ten-record spot check against source PDFs is the only manual verification done, not a systematic accuracy measurement."
   - "Only the 8 archived PDF reports are covered (mid-2022 through mid-2025, per report periods); earlier delegation-of-authority reports are not archived here."

@@ -133,7 +133,7 @@ def _extract_format_a(header: tuple[Any, ...], rows: list[tuple[Any, ...]], raw_
             # procurement-card summary line, not an individual delegated-
             # authority contract) carry no PO Creation Date at all. date is
             # a required, non-nullable schema field; abstaining by skipping
-            # the row is preferred to fabricating one (FAILURES.md #16).
+            # the row is preferred to fabricating one.
             continue
         date_iso = creation_date.replace(tzinfo=timezone.utc).isoformat()
         rationale = _clean(row[rationale_idx]) if rationale_idx is not None and rationale_idx < len(row) else None

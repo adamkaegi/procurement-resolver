@@ -25,24 +25,6 @@ import yaml
 from .transform_registry import TRANSFORMS
 from .validate import validate_releases
 
-# Canonical fields the interpreter reads from the mapping to assemble a
-# release. Everything else in the release shape is structural (see module
-# docstring).
-_MAPPED_FIELDS = (
-    "ocid",
-    "id",
-    "date",
-    "buyer.name",
-    "awards[].suppliers[].name",
-    "awards[].value.amount",
-    "awards[].value.currency",
-    "awards[].description",
-    "awards[].items[].classification.id",
-    "contracts[].period.startDate",
-    "contracts[].period.endDate",
-)
-
-
 def _extract(entry: dict[str, Any] | None, row: dict[str, str]) -> Any:
     if entry is None:
         return None
@@ -119,7 +101,7 @@ def _release(row: dict[str, str], config: dict[str, Any], raw_ref: str) -> dict[
 def _is_usable_row(row: dict[str, str], config: dict[str, Any]) -> bool:
     """False for blank rows and, when the source config names one
     (e.g. ontario_vor's VOR number), rows missing their required field --
-    footer/note rows that aren't vendors (see docs/FAILURES.md #12)."""
+    footer/note rows that aren't vendors."""
     has_any_value = any(value.strip() for value in row.values() if value)
     required_field = config.get("required_source_field")
     return bool(has_any_value and (not required_field or (row.get(required_field) or "").strip()))
