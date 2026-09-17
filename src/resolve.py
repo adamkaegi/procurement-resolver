@@ -5,6 +5,7 @@ import csv
 import hashlib
 import json
 import re
+import tempfile
 import unicodedata
 from collections import defaultdict
 from pathlib import Path
@@ -19,14 +20,15 @@ LEGAL_SUFFIXES = {
     "inc", "incorporated", "corp", "corporation", "co", "company", "ltd",
     "limited", "llc", "lp", "llp", "of canada",
 }
-# Auto-accept / auto-reject bars for token_set_ratio scores (0-100); the band
+# Auto-accept / auto-reject bars for similarity scores (0-100); the band
 # between them abstains, or goes to an adjudicator when one is configured.
-# 92 was checked against the nearest known false-friend pair: "Dell Canada"
-# vs "Bell Canada" scores 90.9 and must NOT auto-accept. The score-100
-# token-superset case ("Bell" vs "Bell Canada") clears any bar by
-# construction -- that is a scoring-function limit (docs/FAILURES.md #17),
-# not a threshold choice. 65 is the floor below which token overlap is too
-# thin to mean anything ("Data Services" vs "Data Systems" scores 64).
+# Checked against real near-misses in this warehouse: "Dell Canada" vs
+# "Bell Canada" (54.5) and "Acme Consulting" vs "Acme Consulting Group"
+# (83.3) must not auto-accept, while "J.L. Richards Associates" vs "J.L.
+# Richards and Associates" (92.0) and "Northstar Engineering Ltd." vs
+# "North Star Engineering Limited" (97.7) should. 65 is the floor below
+# which token overlap is too thin to mean anything ("Data Services" vs
+# "Data Systems" scores 64).
 UPPER_THRESHOLD = 92.0
 LOWER_THRESHOLD = 65.0
 
@@ -50,19 +52,29 @@ def block_key(name: str) -> str:
 
 
 def score_names(left: str, right: str) -> float:
-    if normalize_vendor(left) == normalize_vendor(right):
+    """Similarity of two vendor names after normalization, 0-100.
+
+    Uses token_sort_ratio, not token_set_ratio. token_set_ratio compares
+    the shared-token intersection against the union, so a name whose tokens
+    are a strict subset of a longer one scores 100 regardless of meaning --
+    at this warehouse's scale that produced ~4,000 bogus auto-accepts,
+    including a 30-character firm name matching a 620-character multi-vendor
+    roster at 100.0. token_sort_ratio compares the full sorted strings, so
+    extra tokens on either side correctly cost score. See docs/FAILURES.md
+    #17 and the ADR in docs/DECISIONS.md.
+    """
+    normalized_left, normalized_right = normalize_vendor(left), normalize_vendor(right)
+    if normalized_left == normalized_right:
         return 100.0
-    return float(fuzz.token_set_ratio(normalize_vendor(left), normalize_vendor(right)))
+    return float(fuzz.token_sort_ratio(normalized_left, normalized_right))
 
 
 def classify_pair(left: str, right: str, adjudicator: Any = None) -> dict[str, Any]:
     score = score_names(left, right)
     if score >= UPPER_THRESHOLD:
-        # "exact" only for true normalized equality. token_set_ratio can also
-        # return 100 for a strict token superset ("Bell" vs "Bell Canada");
-        # that still auto-accepts on score (FAILURES.md #17) but must be
-        # labelled "normalized", not "exact" -- the label should never claim
-        # more than the match actually is.
+        # "exact" only for true normalized equality; a high-but-imperfect
+        # score is "normalized". The label should never claim more than the
+        # match actually is.
         exact = normalize_vendor(left) == normalize_vendor(right)
         decision, method = True, "exact" if exact else "normalized"
     elif score <= LOWER_THRESHOLD:
@@ -135,12 +147,64 @@ def _entity_id(normalized: str) -> str:
     return "ent_" + hashlib.sha1(normalized.encode()).hexdigest()[:16]
 
 
+# A token shared by more than this many entities (e.g. "canada", "services")
+# discriminates nothing and only inflates the candidate-pair scan; it is
+# dropped from the blocking index. Entities whose every token is this common
+# simply generate no fuzzy candidates -- exact-normalized clustering still
+# covers them.
+BLOCKING_TOKEN_CAP = 200
+
+
+def blocking_tokens(normalized: str) -> set[str]:
+    """Tokens an entity is discoverable by in the blocking index. Numbered
+    companies additionally index their numeric prefix as its own key
+    (spec Part 8's numbered-company case)."""
+    tokens = set(normalized.split())
+    numbered = re.match(r"(\d+)", normalized)
+    if numbered:
+        tokens.add(f"numbered:{numbered.group(1)}")
+    return tokens
+
+
+def _bulk_insert(connection: duckdb.DuckDBPyConnection, table: str, rows: list[tuple[Any, ...]]) -> None:
+    """Load rows by staging a CSV and letting DuckDB read it natively.
+
+    DuckDB's executemany issues one prepared-statement round trip per row:
+    ~23s per 70k rows, which at this store's row counts dominated the entire
+    rebuild (minutes). Staging to a temp CSV and inserting via read_csv does
+    the same work in ~0.06s -- a ~380x difference -- with no new dependency.
+    Column types come from the table itself so JSON columns round-trip as
+    the strings they already are.
+    """
+    if not rows:
+        return
+    schema = connection.execute(f"SELECT * FROM {table} LIMIT 0").description
+    columns = "{" + ", ".join(f"'{name}': '{type_name}'" for name, type_name, *_ in schema) + "}"
+    with tempfile.NamedTemporaryFile("w", suffix=".csv", newline="", delete=False) as stream:
+        csv.writer(stream).writerows(rows)
+        staged = stream.name
+    try:
+        connection.execute(
+            f"INSERT INTO {table} SELECT * FROM read_csv(?, header=false, columns={columns})",
+            [staged],
+        )
+    finally:
+        Path(staged).unlink(missing_ok=True)
+
+
 def _collect_vendor_occurrences(connection: duckdb.DuckDBPyConnection) -> dict[str, list[tuple[str, str]]]:
     """Every (source_id, verbatim vendor name) occurrence across all releases,
-    grouped by normalized name -- one group becomes one resolved entity."""
+    grouped by normalized name -- one group becomes one resolved entity.
+
+    Rows flagged `_provenance.multi_vendor_row` are skipped: their vendor
+    field is a roster of firms, not one entity, so resolving it as a single
+    vendor would assert a company that doesn't exist. The release itself
+    stays in the warehouse (see src/extract_documents.py)."""
     vendors: dict[str, list[tuple[str, str]]] = defaultdict(list)
     for source_id, raw_record in connection.execute("SELECT source_id, record FROM releases").fetchall():
         record = json.loads(raw_record)
+        if (record.get("_provenance") or {}).get("multi_vendor_row"):
+            continue
         for award in record.get("awards", []):
             for supplier in award.get("suppliers", []):
                 name = supplier.get("name", "")
@@ -150,11 +214,13 @@ def _collect_vendor_occurrences(connection: duckdb.DuckDBPyConnection) -> dict[s
 
 
 def _reset_resolution_tables(connection: duckdb.DuckDBPyConnection) -> None:
+    connection.execute("DROP TABLE IF EXISTS entity_token")
     connection.execute("DROP TABLE IF EXISTS entity_link")
     connection.execute("DROP TABLE IF EXISTS entity")
     connection.execute("DROP TABLE IF EXISTS coverage")
     connection.execute("CREATE TABLE entity (entity_id VARCHAR, canonical_name VARCHAR, name_variants JSON, registry_id VARCHAR, resolution_mode VARCHAR)")
     connection.execute("CREATE TABLE entity_link (entity_id VARCHAR, source_id VARCHAR, source_vendor_name VARCHAR, confidence DOUBLE, method VARCHAR, evidence JSON)")
+    connection.execute("CREATE TABLE entity_token (token VARCHAR, entity_id VARCHAR)")
     connection.execute("CREATE TABLE coverage (source_id VARCHAR, jurisdiction VARCHAR, date_range_start VARCHAR, date_range_end VARCHAR, value_threshold DOUBLE, record_count INTEGER, known_gaps JSON)")
 
 
@@ -164,14 +230,85 @@ def _write_entities_and_links(connection: duckdb.DuckDBPyConnection, vendors: di
     this is exact-normalized clustering only. Fuzzy/uncertain-band candidates
     are scored live at query time by agent_tools.resolve_vendor, not
     persisted here."""
+    entity_rows: list[tuple[str, str, str, None, str]] = []
+    link_rows: list[tuple[str, str, str, float, str, str]] = []
     for normalized, links in vendors.items():
         entity_id = _entity_id(normalized)
-        canonical_name = links[0][1]
         variants = sorted({name for _, name in links})
-        connection.execute("INSERT INTO entity VALUES (?, ?, ?, NULL, ?)", [entity_id, canonical_name, json.dumps(variants), "vendor_to_vendor"])
-        for source_id, name in links:
-            evidence = {"normalized_name": normalized, "blocking": "exact_normalized"}
-            connection.execute("INSERT INTO entity_link VALUES (?, ?, ?, ?, ?, ?)", [entity_id, source_id, name, 1.0, "normalized", json.dumps(evidence)])
+        entity_rows.append((entity_id, links[0][1], json.dumps(variants), None, "vendor_to_vendor"))
+        evidence = json.dumps({"normalized_name": normalized, "blocking": "exact_normalized"})
+        link_rows.extend(
+            (entity_id, source_id, name, 1.0, "normalized", evidence) for source_id, name in links
+        )
+    _bulk_insert(connection, "entity", entity_rows)
+    _bulk_insert(connection, "entity_link", link_rows)
+
+
+def _write_blocking_index(connection: duckdb.DuckDBPyConnection, vendors: dict[str, list[tuple[str, str]]]) -> dict[str, list[str]]:
+    """Persist the token blocking index (entity_token) and return the
+    surviving token -> entity_ids buckets for the cross-entity scan."""
+    buckets: dict[str, list[str]] = defaultdict(list)
+    for normalized in vendors:
+        entity_id = _entity_id(normalized)
+        for token in blocking_tokens(normalized):
+            buckets[token].append(entity_id)
+    buckets = {token: ids for token, ids in buckets.items() if len(ids) <= BLOCKING_TOKEN_CAP}
+    _bulk_insert(
+        connection, "entity_token",
+        [(token, entity_id) for token, ids in buckets.items() for entity_id in ids],
+    )
+    return buckets
+
+
+def _write_cross_entity_links(
+    connection: duckdb.DuckDBPyConnection,
+    vendors: dict[str, list[tuple[str, str]]],
+    buckets: dict[str, list[str]],
+) -> None:
+    """Score every entity pair sharing a blocking token and persist both
+    bands (spec Part 8: block -> score -> band -> link, never merge):
+
+    - score >= UPPER_THRESHOLD: an asserted cross-entity link, method
+      "normalized", at its real confidence (score/100). This is where the
+      known token-superset auto-accepts land (FAILURES.md #17) -- linked
+      with their evidence visible, not silently merged.
+    - LOWER < score < UPPER: an unadjudicated candidate, method "fuzzy",
+      decision explicitly absent. Persisted so the uncertain band is
+      durable and queryable, but excluded from profile aggregation and
+      site counts until adjudicated (see agent_tools / docs/DECISIONS.md).
+    """
+    normalized_by_id = {_entity_id(normalized): normalized for normalized in vendors}
+    names_by_id = {
+        _entity_id(normalized): sorted({(source_id, name) for source_id, name in links})
+        for normalized, links in vendors.items()
+    }
+    rows: list[tuple[str, str, str, float, str, str]] = []
+    seen: set[frozenset[str]] = set()
+    for token, ids in buckets.items():
+        for index, left_id in enumerate(ids):
+            for right_id in ids[index + 1:]:
+                pair = frozenset((left_id, right_id))
+                if pair in seen:
+                    continue
+                seen.add(pair)
+                score = score_names(normalized_by_id[left_id], normalized_by_id[right_id])
+                if score <= LOWER_THRESHOLD:
+                    continue
+                if score >= UPPER_THRESHOLD:
+                    method, band = "normalized", "auto_accept"
+                else:
+                    method, band = "fuzzy", "uncertain_unadjudicated"
+                confidence = round(score / 100, 3)
+                for target_id, other_id in ((left_id, right_id), (right_id, left_id)):
+                    evidence = json.dumps({
+                        "blocking": "token", "token": token, "score": round(score, 3), "band": band,
+                        "matched_entity": other_id, "matched_normalized": normalized_by_id[other_id],
+                    })
+                    rows.extend(
+                        (target_id, source_id, name, confidence, method, evidence)
+                        for source_id, name in names_by_id[other_id]
+                    )
+    _bulk_insert(connection, "entity_link", rows)
 
 
 def _write_coverage(connection: duckdb.DuckDBPyConnection, project_root: Path) -> None:
@@ -211,6 +348,8 @@ def build_entity_store(database: Path, project_root: Path) -> None:
         vendors = _collect_vendor_occurrences(connection)
         _reset_resolution_tables(connection)
         _write_entities_and_links(connection, vendors)
+        buckets = _write_blocking_index(connection, vendors)
+        _write_cross_entity_links(connection, vendors, buckets)
         _write_coverage(connection, project_root)
 
 

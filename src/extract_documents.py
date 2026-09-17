@@ -50,6 +50,41 @@ def clean_text(lines: list[str]) -> str:
     return " ".join(" ".join(lines).replace("\u2010", "-").split())
 
 
+# Page furniture that leaks into a vendor name when a table row spans a page
+# break: the flattened block runs past the row and picks up the next page's
+# header/footer and column labels. Cut the vendor at the first such marker.
+PAGE_FURNITURE = re.compile(
+    r"\s+(?:"
+    r"page\s+\d+\s+of\s+\d+"
+    r"|(?:doa\s+)?document\s+\d+"
+    r"|contracts?\s*>?\s*\$?\s*25[,\s]?000\s+awarded"
+    r"|item\s+contract\s+department"
+    r"|contract\s+approval\s+request\s+type"
+    r"|non[-\s]?competitive\s+rationale"
+    r"|professional\s*/?\s*consulting\s+services\s+contract"
+    r")",
+    re.IGNORECASE,
+)
+
+# A single delegated-authority row can award one contract to a roster of
+# firms (observed: 60 vendors, 620 characters, comma-separated). The verbatim
+# name is preserved -- splitting on punctuation would invent vendors from
+# names that legitimately contain commas -- but the record is flagged so
+# downstream consumers can see it isn't a single legal entity.
+MULTI_VENDOR_MIN_LENGTH = 120
+MULTI_VENDOR_MIN_SEGMENTS = 3
+
+
+def _strip_page_furniture(vendor: str) -> str:
+    """Cut PDF header/footer/column text off the tail of a vendor name."""
+    match = PAGE_FURNITURE.search(vendor)
+    return vendor[:match.start()].strip(" ,;-") if match else vendor
+
+
+def _looks_multi_vendor(vendor: str) -> bool:
+    return len(vendor) >= MULTI_VENDOR_MIN_LENGTH and vendor.count(",") >= MULTI_VENDOR_MIN_SEGMENTS
+
+
 def _parse_amount_vendor_rationale(flattened: str) -> tuple[re.Match, float, str, str | None] | None:
     """The amount is the anchor: everything after it on the same flattened
     line is "vendor [+ optional non-competitive rationale]". Returns None
@@ -63,9 +98,14 @@ def _parse_amount_vendor_rationale(flattened: str) -> tuple[re.Match, float, str
     rationale_match = re.search(r"\s+(Section\s+\d+.*)$", vendor_and_rationale, re.IGNORECASE)
     if rationale_match:
         vendor = vendor_and_rationale[:rationale_match.start()].strip()
-        rationale = rationale_match.group(1).strip()
+        rationale = _strip_page_furniture(rationale_match.group(1).strip()) or None
     else:
         vendor, rationale = vendor_and_rationale, None
+    vendor = _strip_page_furniture(vendor)
+    if not vendor:
+        # Nothing left once furniture is removed -- the "vendor" was page
+        # text, not a name. Abstain rather than emit a junk supplier.
+        return None
     return amount_match, amount, vendor, rationale
 
 
@@ -137,6 +177,11 @@ def extract_records(path: Path, source_id: str = "ottawa_contracts_awarded") -> 
                 "report_period_end": period_end,
                 "approval_request_type": approval_type,
                 "non_competitive_rationale": rationale,
+                # True when this row's vendor field holds a roster of firms
+                # rather than one legal entity (see MULTI_VENDOR_MIN_LENGTH).
+                # The name stays verbatim; resolution should not treat a
+                # flagged record as evidence about a single vendor.
+                "multi_vendor_row": _looks_multi_vendor(vendor),
             },
         })
     elapsed_ms = round((time.perf_counter() - started) * 1000, 3)

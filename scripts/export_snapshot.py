@@ -59,7 +59,12 @@ def export_releases(connection: duckdb.DuckDBPyConnection) -> str:
 
 def export_entities(connection: duckdb.DuckDBPyConnection) -> str:
     jurisdiction_map = tools.source_jurisdiction_map(connection)
-    rows = connection.execute("SELECT DISTINCT entity_id, source_id FROM entity_link").fetchall()
+    # Asserted links only: uncertain-band "fuzzy" candidates are persisted in
+    # entity_link but must not inflate the site's resolved-across-
+    # jurisdictions count until adjudicated.
+    rows = connection.execute(
+        "SELECT DISTINCT entity_id, source_id FROM entity_link WHERE method != 'fuzzy'"
+    ).fetchall()
     by_entity: dict[str, set[str]] = defaultdict(set)
     for entity_id, source_id in rows:
         by_entity[entity_id].add(jurisdiction_map.get(source_id))

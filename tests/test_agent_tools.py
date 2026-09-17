@@ -44,6 +44,7 @@ def warehouse(tmp_path):
     connection.execute("CREATE TABLE releases (source_id VARCHAR, ocid VARCHAR, record JSON)")
     connection.execute("CREATE TABLE entity (entity_id VARCHAR, canonical_name VARCHAR, name_variants JSON, registry_id VARCHAR, resolution_mode VARCHAR)")
     connection.execute("CREATE TABLE entity_link (entity_id VARCHAR, source_id VARCHAR, source_vendor_name VARCHAR, confidence DOUBLE, method VARCHAR, evidence JSON)")
+    connection.execute("CREATE TABLE entity_token (token VARCHAR, entity_id VARCHAR)")
     connection.execute("CREATE TABLE coverage (source_id VARCHAR, jurisdiction VARCHAR, date_range_start VARCHAR, date_range_end VARCHAR, value_threshold DOUBLE, record_count INTEGER, known_gaps JSON)")
 
     releases = [
@@ -51,6 +52,7 @@ def warehouse(tmp_path):
         _release("federal_contracts", "F2", "Dept of Fictional Affairs", "Bell Canada", 25000.0),
         _release("ontario_vor", "O1", "Ontario Government", "Bell Canada", 0.0),
         _release("federal_contracts", "F3", "Dept of Fictional Affairs", "Sole Federal Vendor Inc.", 10000.0),
+        _release("federal_contracts", "F4", "Dept of Fictional Affairs", "Belle Canada Consulting", 99000.0),
     ]
     connection.executemany("INSERT INTO releases VALUES (?, ?, ?)", releases)
 
@@ -62,6 +64,8 @@ def warehouse(tmp_path):
             ("ent_bell", "federal_contracts", "Bell Canada", 1.0, "normalized", json.dumps({})),
             ("ent_bell", "federal_contracts", "Bell Canada", 1.0, "normalized", json.dumps({})),
             ("ent_bell", "ontario_vor", "Bell Canada", 1.0, "normalized", json.dumps({})),
+            # an unadjudicated uncertain-band candidate: persisted, never counted
+            ("ent_bell", "federal_contracts", "Belle Canada Consulting", 0.78, "fuzzy", json.dumps({"band": "uncertain_unadjudicated"})),
         ],
     )
     # single-jurisdiction entity: only ever appears federally.
@@ -69,6 +73,10 @@ def warehouse(tmp_path):
     connection.execute(
         "INSERT INTO entity_link VALUES ('ent_solo', 'federal_contracts', 'Sole Federal Vendor Inc.', 1.0, 'normalized', ?)",
         [json.dumps({})],
+    )
+    connection.executemany(
+        "INSERT INTO entity_token VALUES (?, ?)",
+        [("bell", "ent_bell"), ("canada", "ent_bell"), ("sole", "ent_solo"), ("federal", "ent_solo"), ("vendor", "ent_solo")],
     )
 
     connection.execute(
@@ -99,7 +107,29 @@ def test_entity_profile_gathers_contracts_across_sources(warehouse):
     profile = entity_profile(warehouse, "ent_bell")
     assert profile is not None
     assert profile.jurisdictions_present == ["federal", "on"]
-    assert len(profile.contracts) == 3  # F1, F2, O1
+    assert len(profile.contracts) == 3  # F1, F2, O1 -- NOT the fuzzy candidate's F4
+
+
+def test_entity_profile_surfaces_but_never_counts_fuzzy_candidates(warehouse):
+    profile = entity_profile(warehouse, "ent_bell")
+    assert [link.source_vendor_name for link in profile.candidate_links] == ["Belle Canada Consulting"]
+    assert all(link.method != "fuzzy" for link in profile.links)
+    # the candidate's contract (F4, $99,000) must not leak into the profile
+    assert all(c.ocid != "F4" for c in profile.contracts)
+
+
+def test_cross_level_exposure_notes_excluded_candidates(warehouse):
+    result = cross_level_exposure(warehouse, "ent_bell")
+    assert result.candidate_note is not None
+    assert "Belle Canada Consulting" in result.candidate_note
+    # candidates must not drag overall_confidence below the floor
+    assert result.overall_confidence == 1.0
+    assert result.declined is False
+
+
+def test_resolve_vendor_returns_empty_for_unindexed_query(warehouse):
+    result = resolve_vendor(warehouse, "Zzyzx Holdings")
+    assert result.candidates == []
 
 
 def test_entity_profile_unknown_entity_returns_none(warehouse):
@@ -128,13 +158,13 @@ def test_compare_buyers_flags_different_thresholds(warehouse):
     assert any("different disclosure thresholds" in c for c in result.caveats)
 
 
-def test_compare_buyers_reports_total_at_the_sample_floor(warehouse):
+def test_compare_buyers_reports_total_above_the_sample_floor(warehouse):
     result = compare_buyers(warehouse, jurisdictions=["federal"])
     buyer = next(r for r in result.results if r.buyer_name == "Dept of Fictional Affairs")
-    # exactly 3 federal records for this buyer -- at the floor, not below it -- so it reports.
-    assert buyer.contract_count == 3
+    # four federal records for this buyer (F1, F2, F3, F4) -- above the floor, so it reports.
+    assert buyer.contract_count == 4
     assert buyer.declined is False
-    assert buyer.total_amount == 85000.0
+    assert buyer.total_amount == 184000.0
 
 
 def test_compare_buyers_declines_below_sample_floor(warehouse):

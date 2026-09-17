@@ -95,22 +95,93 @@ def test_classify_pair_labels_true_normalized_equality_as_exact():
     assert result["method"] == "exact"
 
 
-def test_classify_pair_does_not_label_token_superset_as_exact():
-    # token_set_ratio scores a strict token superset at 100 (FAILURES.md #17),
-    # so this still auto-accepts on score -- but the label must say
-    # "normalized", never "exact", for a pair that isn't actually equal.
+def test_token_superset_is_rejected_not_matched():
+    # Regression pin for docs/FAILURES.md #17. Under token_set_ratio this
+    # pair scored 100.0 and auto-accepted, because one name's tokens are a
+    # strict subset of the other's. token_sort_ratio compares full sorted
+    # strings, so the extra token costs score and the pair is rejected.
     result = classify_pair("Bell", "Bell Canada")
-    assert result["score"] == 100.0
-    assert result["decision"] is True
-    assert result["method"] == "normalized"
+    assert result["score"] < LOWER_THRESHOLD
+    assert result["decision"] is False
 
 
-def test_dell_canada_vs_bell_canada_lands_in_adjudication_band():
-    # The nearest known false-friend pair; UPPER_THRESHOLD was checked
-    # against it. If this ever auto-accepts, the threshold moved wrongly.
-    result = classify_pair("Dell Canada Inc.", "Bell Canada")
+def test_extra_legal_name_token_does_not_auto_accept():
+    # evals/provisional/resolution/pairs.csv P015 labels this no-match.
+    # token_set_ratio scored it 100.0 (a false positive counted in the
+    # provisional metrics); it must now land in the band, not auto-accept.
+    result = classify_pair("Acme Consulting Inc.", "Acme Consulting Group Inc.")
     assert LOWER_THRESHOLD < result["score"] < UPPER_THRESHOLD
     assert result["decision"] is None
+
+
+def test_dell_canada_vs_bell_canada_is_rejected():
+    # One-character-different false friend: must never auto-accept.
+    result = classify_pair("Dell Canada Inc.", "Bell Canada")
+    assert result["score"] < UPPER_THRESHOLD
+    assert result["decision"] is not True
+
+
+def test_real_legal_name_variation_still_auto_accepts():
+    # The matches the fuzzy band exists to catch (observed in the warehouse).
+    for left, right in [
+        ("Northstar Engineering Ltd.", "North Star Engineering Limited"),
+        ("J.L. Richards & Associates Limited", "J L Richards and Associates"),
+        ("GUILLEVIN INTERNATIONAL CO.", "Guillevin International"),
+    ]:
+        result = classify_pair(left, right)
+        assert result["decision"] is True, f"{left} vs {right} -> {result['score']}"
+        assert result["score"] >= UPPER_THRESHOLD
+
+
+def test_build_entity_store_persists_both_bands_and_the_blocking_index(tmp_path):
+    import duckdb
+
+    from src.resolve import build_entity_store
+
+    db_path = tmp_path / "store.duckdb"
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+
+    def release(source_id, ocid, vendor):
+        import json
+        return (source_id, ocid, json.dumps({
+            "ocid": ocid, "awards": [{"suppliers": [{"name": vendor}]}],
+        }))
+
+    with duckdb.connect(str(db_path)) as connection:
+        connection.execute("CREATE TABLE releases (source_id VARCHAR, ocid VARCHAR, record JSON)")
+        connection.executemany("INSERT INTO releases VALUES (?, ?, ?)", [
+            # legal-name variation: auto-accepts as an asserted cross-entity link
+            release("federal_contracts", "F1", "J.L. Richards & Associates Limited"),
+            release("canadabuys_award_notices", "C1", "J L Richards and Associates"),
+            # one altered token: lands in the uncertain band as a candidate
+            release("federal_contracts", "F2", "Maple Leaf Data Services Ltd."),
+            release("ontario_vor", "O1", "Maple Leaf Data Solutions Ltd."),
+        ])
+
+    build_entity_store(db_path, tmp_path)
+
+    with duckdb.connect(str(db_path), read_only=True) as connection:
+        assert connection.execute("SELECT COUNT(*) FROM entity").fetchone()[0] == 4
+        assert connection.execute("SELECT COUNT(*) FROM entity_token").fetchone()[0] > 0
+
+        asserted_cross = connection.execute(
+            "SELECT source_vendor_name, confidence FROM entity_link "
+            "WHERE method = 'normalized' AND json_extract_string(evidence, '$.blocking') = 'token'"
+        ).fetchall()
+        # The J.L. Richards legal-name variation links across sources, both ways.
+        assert {name for name, _ in asserted_cross} == {
+            "J.L. Richards & Associates Limited", "J L Richards and Associates",
+        }
+        assert all(confidence >= 0.92 for _, confidence in asserted_cross)
+
+        candidates = connection.execute(
+            "SELECT source_vendor_name, confidence FROM entity_link WHERE method = 'fuzzy'"
+        ).fetchall()
+        # the Maple Leaf pair lands in the uncertain band, persisted as
+        # candidates with their real (sub-floor) confidence, decision absent.
+        assert {name for name, _ in candidates} == {"Maple Leaf Data Services Ltd.", "Maple Leaf Data Solutions Ltd."}
+        assert all(0.65 < confidence < 0.92 for _, confidence in candidates)
 
 
 def test_evaluate_pairs_reports_counts_by_jurisdiction_pair_and_marks_provisional(tmp_path):

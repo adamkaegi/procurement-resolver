@@ -16,7 +16,7 @@ from typing import Any
 import duckdb
 from pydantic import BaseModel
 
-from .resolve import UPPER_THRESHOLD, classify_pair, score_names
+from .resolve import UPPER_THRESHOLD, blocking_tokens, classify_pair, normalize_vendor, score_names
 
 # Same auto-accept bar entity resolution already uses (resolve.UPPER_THRESHOLD
 # is a 0-100 score; aggregation confidence here is 0-1). Reusing it rather
@@ -70,6 +70,11 @@ class EntityProfileResult(BaseModel):
     canonical_name: str
     name_variants: list[str]
     links: list[EntityLinkSummary]
+    # Uncertain-band matches (method "fuzzy", confidence 0.65-0.92) persisted
+    # by the resolution store but never adjudicated: listed so the caller
+    # sees them, excluded from contracts/jurisdictions/aggregation until a
+    # human or adjudicator promotes them.
+    candidate_links: list[EntityLinkSummary]
     contracts: list[ContractSummary]
     jurisdictions_present: list[str]
 
@@ -90,6 +95,9 @@ class CrossLevelExposureResult(BaseModel):
     declined: bool
     decline_reason: str | None
     overall_confidence: float | None
+    # Set when unadjudicated candidate links exist for this entity: the
+    # totals above deliberately exclude them, and this says so out loud.
+    candidate_note: str | None
     exposures: list[JurisdictionExposure]
 
 
@@ -152,7 +160,20 @@ def source_jurisdiction_map(connection: duckdb.DuckDBPyConnection) -> dict[str, 
 
 def resolve_vendor(connection: duckdb.DuckDBPyConnection, name: str, jurisdiction: str | None = None, limit: int = 10) -> ResolveVendorResult:
     jurisdiction_map = source_jurisdiction_map(connection)
-    entities = connection.execute("SELECT entity_id, canonical_name, name_variants FROM entity").fetchall()
+    # Blocking (spec Part 8 step 2): only score entities sharing a blocking
+    # token with the query, via the entity_token index the store builds --
+    # not a full scan of every entity. A query whose every token was too
+    # common to index (or matches nothing) legitimately returns no
+    # candidates.
+    query_tokens = sorted(blocking_tokens(normalize_vendor(name)))
+    if not query_tokens:
+        return ResolveVendorResult(query=name, jurisdiction_filter=jurisdiction, candidates=[])
+    placeholders = ", ".join("?" for _ in query_tokens)
+    entities = connection.execute(
+        "SELECT entity_id, canonical_name, name_variants FROM entity WHERE entity_id IN "
+        f"(SELECT DISTINCT entity_id FROM entity_token WHERE token IN ({placeholders}))",
+        query_tokens,
+    ).fetchall()
 
     candidates: list[EntityCandidate] = []
     for entity_id, canonical_name, variants_json in entities:
@@ -235,7 +256,15 @@ def entity_profile(connection: duckdb.DuckDBPyConnection, entity_id: str) -> Ent
     if row is None:
         return None
     canonical_name, variants_json = row
-    links = _entity_links(connection, entity_id)
+    all_links = _entity_links(connection, entity_id)
+    # Asserted links (exact/normalized, incl. auto-accepted cross-entity
+    # matches) drive the profile; uncertain-band "fuzzy" candidates are
+    # surfaced but never counted until adjudicated.
+    links = [link for link in all_links if link.method != "fuzzy"]
+    candidate_links = sorted(
+        (link for link in all_links if link.method == "fuzzy"),
+        key=lambda link: link.confidence, reverse=True,
+    )
     contracts = _contracts_for_links(connection, links)
     jurisdictions = sorted({c.jurisdiction for c in contracts if c.jurisdiction})
     return EntityProfileResult(
@@ -243,6 +272,7 @@ def entity_profile(connection: duckdb.DuckDBPyConnection, entity_id: str) -> Ent
         canonical_name=canonical_name,
         name_variants=json.loads(variants_json),
         links=links,
+        candidate_links=candidate_links,
         contracts=contracts,
         jurisdictions_present=jurisdictions,
     )
@@ -298,12 +328,23 @@ def cross_level_exposure(connection: duckdb.DuckDBPyConnection, entity_id: str) 
             "Returning per-source detail instead of a combined total."
         )
 
+    candidate_note = None
+    if profile.candidate_links:
+        strongest = profile.candidate_links[0]
+        candidate_note = (
+            f"{len(profile.candidate_links)} unadjudicated candidate link(s) in the uncertain "
+            f"band (strongest: {strongest.source_vendor_name!r} at {strongest.confidence:.2f}) are "
+            "excluded from these totals. They are persisted in entity_link with method 'fuzzy' "
+            "and stay excluded until adjudicated."
+        )
+
     return CrossLevelExposureResult(
         entity_id=entity_id,
         canonical_name=profile.canonical_name,
         declined=declined,
         decline_reason=decline_reason,
         overall_confidence=overall_confidence,
+        candidate_note=candidate_note,
         exposures=exposures,
     )
 
@@ -329,33 +370,34 @@ def compare_buyers(connection: duckdb.DuckDBPyConnection, jurisdictions: list[st
     results: list[BuyerAggregate] = []
     for row in coverage_rows:
         source_id, jurisdiction = row["source_id"], row["jurisdiction"]
-        raw_rows = connection.execute("SELECT record FROM releases WHERE source_id = ?", [source_id]).fetchall()
-        buyer_totals: dict[str, list[float]] = {}
-        for (raw,) in raw_rows:
-            record = json.loads(raw)
-            award = _award(record)
-            if category and category.lower() not in (award.get("description") or "").lower():
-                continue
-            buyer_name = (record.get("buyer") or {}).get("name") or "Unknown"
-            # Same guard as ContractSummary.amount: schema validation makes
-            # amount a number >= 0; "or 0.0" covers shape drift, and all-zero
-            # groups are declined below rather than reported as $0 spend.
-            buyer_totals.setdefault(buyer_name, []).append(float((award.get("value") or {}).get("amount") or 0.0))
-
-        ranked_buyers = sorted(buyer_totals.items(), key=lambda item: sum(item[1]), reverse=True)[:limit]
-        for buyer_name, amounts in ranked_buyers:
-            all_zero = all(a == 0.0 for a in amounts)
-            insufficient = len(amounts) < MIN_BUYER_AGGREGATE_SAMPLE
+        # Aggregation happens in DuckDB, not by json.loads-ing every release
+        # in Python -- schema validation upstream guarantees amount is a
+        # number >= 0, and all-zero groups are declined below rather than
+        # reported as $0 spend.
+        ranked_buyers = connection.execute(
+            "SELECT COALESCE(NULLIF(json_extract_string(record, '$.buyer.name'), ''), 'Unknown') AS buyer, "
+            "COUNT(*) AS n, "
+            "SUM(CAST(json_extract(record, '$.awards[0].value.amount') AS DOUBLE)) AS total, "
+            "MAX(CAST(json_extract(record, '$.awards[0].value.amount') AS DOUBLE)) AS max_amount "
+            "FROM releases WHERE source_id = ? "
+            "AND (? IS NULL OR lower(COALESCE(json_extract_string(record, '$.awards[0].description'), '')) "
+            "LIKE '%' || lower(?) || '%') "
+            "GROUP BY 1 ORDER BY total DESC, buyer LIMIT ?",
+            [source_id, category, category, limit],
+        ).fetchall()
+        for buyer_name, count, total, max_amount in ranked_buyers:
+            all_zero = max_amount == 0.0
+            insufficient = count < MIN_BUYER_AGGREGATE_SAMPLE
             results.append(BuyerAggregate(
                 jurisdiction=jurisdiction,
                 buyer_name=buyer_name,
-                contract_count=len(amounts),
-                total_amount=None if (all_zero or insufficient) else round(sum(amounts), 2),
+                contract_count=count,
+                total_amount=None if (all_zero or insufficient) else round(total, 2),
                 declined=insufficient,
                 decline_reason=(
-                    f"Only {len(amounts)} matching record(s), below the {MIN_BUYER_AGGREGATE_SAMPLE}-record "
+                    f"Only {count} matching record(s), below the {MIN_BUYER_AGGREGATE_SAMPLE}-record "
                     "floor for reporting an aggregate; returning the count only." if insufficient else
-                    (f"All {len(amounts)} matching record(s) show $0 (source design or a data-quality "
+                    (f"All {count} matching record(s) show $0 (source design or a data-quality "
                      "artifact -- not confirmed zero spend); excluded rather than reported as $0." if all_zero else None)
                 ),
             ))
