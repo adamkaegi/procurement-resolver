@@ -129,6 +129,61 @@ the code is shaped the way it is.
   catalogue's items are structured Feature Services, not PDFs, and would
   likely beat PDF text-extraction on both cost and accuracy for future work.
 
+### Ottawa vendor names: strip page furniture, flag rosters, split neither
+
+- Context: the PDF parser defined a row's vendor as all text after the
+  amount to the end of the flattened block. When a table row spanned a page
+  break that swallowed the next page's header, footer, and column labels —
+  97 corrupted vendor names, worst case 620 characters. Separately, some
+  rows legitimately award one contract to a roster of firms, so the vendor
+  field really does contain 60 companies. A related claim that one report
+  was image-only and unextractable turned out to be false (see below).
+- Decision: cut known page furniture (`Page N of M`, `DOA Document N`,
+  column-label runs, the report's own title banner) off the vendor field,
+  and abstain from the record entirely if nothing remains — the "vendor"
+  was page text, not a name. For genuine rosters, keep the verbatim name
+  but set `_provenance.multi_vendor_row`, and have the resolver skip those
+  rows: a roster is not evidence about any single vendor.
+- Alternative rejected: splitting rosters on commas into multiple
+  `suppliers[]` entries. More correct per OCDS in principle, but names in
+  this data legitimately contain commas (`ARCADIS PROF SERVICES (CANADA)
+  INC`), so splitting would invent vendors that don't exist — worse than
+  declining to model the roster.
+- Consequence: corrupted names 97 → 0, and the resolution layer stopped
+  matching unrelated vendors on their shared boilerplate. Entities fell
+  9,030 → 8,916 as the furniture-inflated duplicates collapsed into their
+  real names. Catalogued as `FAILURES.md` #20 and #21. Worth noting how
+  this was found: the bug survived the project's entire life because
+  exact-normalized clustering never compared one entity to another, and
+  surfaced within minutes of blocking doing so — a defect in one layer
+  that only a different layer could reveal.
+
+### Retracted: the "image-only Ottawa PDF"
+
+- Context: `FAILURES.md` #14 asserted that one Transit report was
+  image-only, produced no text through the deterministic parser, and would
+  need OCR or a vision model. It was carried as a known gap in that
+  source's `known_gaps`, in `AGENT_DEMO.md`, and was scoped as real work.
+- Decision: verify before building. All eight archived PDFs were checked:
+  none contains a single embedded image, every one yields substantial
+  extractable text (the accused file yields 32,823 characters), and every
+  one contributes records to the deduped warehouse (that file: 98
+  extracted, 50 surviving dedup). No OCR or vision-model path was built,
+  because there is nothing for it to do.
+- Alternative rejected: implementing the vision-model extraction anyway —
+  it had been planned and a model was already pulled, but shipping a
+  slow, non-deterministic extraction path for a document that parses fine
+  would be solving a problem that doesn't exist, and the ADR justifying it
+  would have been false.
+- Consequence: `FAILURES.md` #14 is struck through and marked retracted
+  rather than deleted, and the derived `known_gaps` claim is corrected.
+  The original entry most likely described a parser failure on that
+  report's layout, later fixed by unrelated parser work, that was recorded
+  as a property of the document. The lesson is the reason the entry is
+  kept visible: "the parser produced nothing" and "the document contains
+  nothing" are different diagnoses, and the catalogue asserted the harder
+  one without checking.
+
 ### Ottawa PDF extraction: deterministic regex parsing, not a model call
 
 - Context: the downloaded Ottawa reports are text-based PDFs with repeated,
@@ -170,6 +225,83 @@ the code is shaped the way it is.
   side specifically.
 
 ## Vendor resolution
+
+### `token_sort_ratio`, not `token_set_ratio`
+
+- Context: `score_names` used `rapidfuzz.token_set_ratio`, which scores the
+  shared-token intersection against the union — so a name whose tokens are
+  a strict subset of a longer name scores 100 regardless of meaning. Known
+  and disclosed as `docs/FAILURES.md` #17 on a toy pair ("Bell" vs "Bell
+  Canada"). Persisting the fuzzy band revealed it was not a corner case:
+  3,958 entity pairs auto-accepted, including a 30-character firm name
+  matched at 100.0 against a 620-character multi-vendor roster.
+- Decision: switch to `token_sort_ratio`, which compares the full sorted
+  strings so extra tokens on either side cost score. Auto-accepts dropped
+  to 987 and every sampled one is a genuine legal-name variant
+  (`GUILLEVIN INTERNATIONAL CO.` / `Guillevin International`, `J.L.
+  Richards & Associates Limited` / `J L Richards and Associates`).
+  Thresholds stayed at 92/65, re-checked against real near-misses.
+- Alternative rejected: keeping `token_set_ratio` plus a token-count guard
+  — preserves the existing scores but adds a second tunable number to
+  defend, and treats the symptom rather than the metric that causes it.
+- Consequence: the fix has a real cost, catalogued as `FAILURES.md` #18.
+  Drastic abbreviations now miss (`CGI Information Systems and Management
+  Consultants Inc.` vs `CGI Inc.` scores 11.3 and is rejected, where the
+  old scorer caught it by construction). On the provisional pairs,
+  federal↔on precision went 0.727 → 0.875 while federal↔federal recall
+  went 1.0 → 0.667. That trade was taken deliberately: a systematic false
+  positive that fabricates cross-jurisdiction links is worse in this
+  project than a missed abbreviation, because the whole premise is not
+  asserting joins the data can't support. Closing the abbreviation gap
+  needs corroborating evidence, not a different string metric.
+
+### Persist both resolution bands; count only the asserted ones
+
+- Context: `entity_link` held only exact-normalized links at confidence
+  1.0. The scoring, banding, and abstention logic all existed but nothing
+  durable ever landed in the uncertain band, so `cross_level_exposure`'s
+  confidence-floor refusal could never actually fire, and the most
+  interesting part of the resolution layer existed only transiently inside
+  a tool response.
+- Decision: the store now blocks on a persisted token index, scores every
+  entity pair sharing a token, and writes both bands — auto-accepts
+  (≥ 0.92) as asserted links with method `normalized` at their real
+  confidence, and the uncertain band (0.65–0.92) as method `fuzzy`
+  candidates carrying their score and matched-entity evidence.
+  `entity_profile` returns candidates in a separate `candidate_links`
+  field; `cross_level_exposure` adds a `candidate_note`. Candidates are
+  excluded from contracts, jurisdiction counts, dollar totals, and the
+  published site's cross-jurisdiction count until adjudicated.
+- Alternative rejected: persisting only auto-accepts (leaves the refusal
+  path unreachable and discards the band the design is about); or counting
+  candidates in aggregates (inflates the headline "resolved across
+  jurisdictions" number with unadjudicated guesses, which is the exact
+  failure mode this project exists to avoid).
+- Consequence: 24,085 asserted links and 60,135 candidate links, and
+  cross-jurisdiction entities rose 412 → 483 as real matches the
+  exact-only clustering had missed got linked. The uncertain band is now
+  queryable evidence rather than a transient calculation, and an
+  adjudicator — human or model — has a concrete work queue to act on.
+
+### Blocking index and set-based aggregation, not per-call Python scans
+
+- Context: `resolve_vendor` scanned all ~9,000 entities in Python on every
+  call, scoring each one, despite the blocking machinery the design calls
+  for; `compare_buyers` ran `json.loads` over every release per call. Fine
+  at 23k rows, indefensible at 10x.
+- Decision: the store persists an `entity_token` blocking index (tokens
+  shared by more than `BLOCKING_TOKEN_CAP` entities are dropped as
+  non-discriminating), and `resolve_vendor` scores only entities sharing a
+  token with the query. `compare_buyers` aggregates in DuckDB. Bulk loads
+  stage a CSV and use `read_csv` rather than `executemany`, which costs
+  ~23s per 70k rows and had made the rebuild take minutes.
+- Alternative rejected: adding `pyarrow` for a native batch insert — a new
+  dependency needing its own ADR, when a temp CSV through DuckDB's own
+  reader is ~380x faster than `executemany` and adds nothing.
+- Consequence: full rebuild is ~45 seconds end to end including the
+  all-pairs blocked scan. The cap is the one real limitation: an entity
+  whose every token is very common generates no fuzzy candidates, so
+  exact-normalized clustering is all that covers it.
 
 ### Deterministic blocking and scoring; abstain, don't force, in the uncertain band
 

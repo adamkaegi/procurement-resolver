@@ -59,21 +59,28 @@ Excel workbooks) — documents, not columns.
 
 ## Vendor resolution
 
-Deterministic normalization (legal-suffix stripping, punctuation, casing) +
-blocking + `rapidfuzz` scoring, per spec Part 8. Current warehouse: **9,030
-resolved entities**, **23,426 entity links**, of which **412 entities
-resolve to records in two or more jurisdictions** — vendors genuinely
-visible across levels of government that would otherwise look like
-unrelated records in three separate CSVs. Stantec Consulting Ltd is the
-largest, with 129 linked contracts across all three jurisdictions.
+Deterministic normalization (legal-suffix stripping, punctuation, casing) →
+token blocking → `rapidfuzz.token_sort_ratio` scoring → confidence
+banding, per spec Part 8. Current warehouse: **8,916 resolved entities**,
+**24,085 asserted entity links** plus **60,135 unadjudicated candidates**,
+with **483 entities resolving to records in two or more jurisdictions** —
+vendors genuinely visible across levels of government that would otherwise
+look like unrelated records in separate CSVs.
 
-Entity links currently persisted are exact-normalized matches only
-(confidence 1.0). Fuzzy and uncertain-band candidates are scored live at
-query time by the `resolve_vendor` tool (`src/agent_tools.py`) but aren't
-written to `entity_link`. The scoring function's known precision limit —
-`token_set_ratio` treats a name that's a strict token superset of another as
-a full match regardless of meaning — is catalogued as `docs/FAILURES.md`
-#17 and left visible in `resolve_vendor` output rather than filtered out.
+Both bands persist. Auto-accepts (≥ 0.92) are asserted links at their real
+confidence; the uncertain band (0.65–0.92) is written as method `fuzzy`
+candidates with their score and matched-entity evidence. Candidates are
+surfaced (`entity_profile.candidate_links`, `cross_level_exposure.candidate_note`)
+but excluded from every contract list, jurisdiction count, dollar total,
+and the published site's cross-jurisdiction count until adjudicated —
+persisting the band is not the same as believing it. Queries block on a
+persisted `entity_token` index rather than scanning every entity.
+
+The scoring function was switched from `token_set_ratio` to
+`token_sort_ratio` after persisting the band exposed that the former
+auto-accepted 3,958 pairs on token-subset overlap alone — see
+`docs/DECISIONS.md` and `docs/FAILURES.md` #17 (fixed) and #18 (what the
+fix cost: drastic abbreviations like `CGI Inc.` are now missed).
 
 ## MCP agent
 

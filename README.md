@@ -95,9 +95,9 @@ validate.py            (every record checked against schema/ocds_subset.json)
         ▼
 load.py                → data/warehouse.duckdb : releases
         ▼
-resolve.py              blocking → rapidfuzz scoring → confidence bands
+resolve.py              token blocking → rapidfuzz scoring → confidence bands
         ▼
-                        → entity, entity_link, coverage
+                        → entity, entity_token, entity_link, coverage
         ▼
 agent_tools.py + server.py   five typed MCP tools, confidence + coverage
                               caveats on every answer, refusal below threshold
@@ -170,9 +170,11 @@ No `run_sql` tool — typed tools only, per `CLAUDE.md` rule 4.
 ## Status
 
 6 sources ingested (23,426 records), a working end-to-end rebuild
-(`scripts/rebuild.py`), a resolved entity/entity_link/coverage layer (9,030
-entities, 412 of them resolved across two or more jurisdictions), a working
-MCP server with real refusal logic verified against the live warehouse, and
+(`scripts/rebuild.py`, ~45s), a resolved entity layer (8,916 entities,
+483 of them resolved across two or more jurisdictions, with the uncertain
+match band persisted separately and excluded from every total until
+adjudicated), a working MCP server with real refusal logic verified
+against the live warehouse, and
 a real logged local-LLM mapping-generation run in
 [`evals/results/llm_calls.jsonl`](evals/results/llm_calls.jsonl). Full
 detail: [`docs/PROGRESS.md`](docs/PROGRESS.md).

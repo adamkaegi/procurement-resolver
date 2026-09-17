@@ -122,11 +122,17 @@ def test_dell_canada_vs_bell_canada_is_rejected():
 
 
 def test_real_legal_name_variation_still_auto_accepts():
-    # The matches the fuzzy band exists to catch (observed in the warehouse).
+    # Matches the fuzzy band exists to catch, all observed in the warehouse
+    # and all uncontroversially the same firm (ampersand/"and", a dropped
+    # "Co.", a dropped "Limited"). Deliberately excludes pairs whose correct
+    # label is arguable, e.g. "Northstar" vs "North Star" -- which this
+    # scorer accepts at 97.7 but the provisional pair file labels no-match
+    # (see docs/FAILURES.md #18); a test should not silently pick a side in
+    # that disagreement.
     for left, right in [
-        ("Northstar Engineering Ltd.", "North Star Engineering Limited"),
         ("J.L. Richards & Associates Limited", "J L Richards and Associates"),
         ("GUILLEVIN INTERNATIONAL CO.", "Guillevin International"),
+        ("TROY LIFE AND FIRE SAFETY LTD", "Troy Life and Fire Safety"),
     ]:
         result = classify_pair(left, right)
         assert result["decision"] is True, f"{left} vs {right} -> {result['score']}"

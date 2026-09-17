@@ -54,10 +54,8 @@ Ask both of these in the same conversation, back to back.
 > Resolve "Bell Canada" and tell me its total contract exposure across
 > jurisdictions.
 
-Expect: `resolve_vendor` returns several ranked candidates (note some will be
-imperfect matches, e.g. a bare "Bell" scoring 1.0 as a "normalized" match —
-that's a known, catalogued resolution artifact, see `docs/FAILURES.md` #17,
-not a bug to hide). Picking the right entity and calling `cross_level_exposure`
+Expect: `resolve_vendor` returns ranked candidates scored by the blocking
+index, exact matches first. Picking the right entity and calling `cross_level_exposure`
 should return `declined: false` with a real per-jurisdiction breakdown,
 including a federal source where some included contracts are $0 and
 explicitly excluded from the total rather than silently zeroed.
@@ -78,7 +76,7 @@ A third prompt worth having ready if there's time:
 
 This calls `coverage` directly and surfaces the $10K/$25K threshold
 differences and the documented known_gaps per source (Ontario VOR's
-zero-value arrangements, Ottawa's image-only PDF, the federal 5,000-row
+zero-value arrangements, Ottawa's multi-vendor roster rows, the federal 5,000-row
 truncation) — the thing spec Part 2 calls "the best argument in the project
 for why an agent with coverage awareness beats a dashboard."
 
@@ -89,9 +87,9 @@ for why an agent with coverage awareness beats a dashboard."
   exclusive lock and the MCP server's read-only connections will fail with
   `IO Error: Could not set lock on file...`. Either close that session, or
   reopen it read-only: `duckdb data/warehouse.duckdb -readonly`.
-- **`resolve_vendor` surfaces real matching noise.** The entity-resolution
-  scoring function (`rapidfuzz.token_set_ratio`) treats a name that's a
-  strict token subset of another as a perfect match — e.g. "Bell" alone
-  scores 1.0 against "Bell Canada". This is disclosed, catalogued behavior
-  (`docs/FAILURES.md` #17, `evals/results/PROVISIONAL_resolution_metrics.log`),
-  not something this demo hides.
+- **Unadjudicated candidates are shown but never counted.** Entities may
+  carry uncertain-band (0.65-0.92) `candidate_links`. `entity_profile`
+  lists them and `cross_level_exposure` notes them, but they are excluded
+  from every contract list, jurisdiction count, and dollar total until
+  adjudicated — so a profile can legitimately show candidates alongside a
+  total that ignores them.
