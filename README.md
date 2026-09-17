@@ -3,7 +3,7 @@
 [![CI](https://github.com/adamkaegi/procurement-resolver/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/adamkaegi/procurement-resolver/actions/workflows/ci.yml)
 
 Canadian public procurement is published at three levels of government — federal,
-Ontario, and the City of Ottawa — that share no schema, no vendor identifier, and
+provincial (Ontario), and municipal (City of Ottawa) — that share no schema, no vendor identifier, and
 no common publication format. A firm holding contracts at all three levels is
 invisible as a single entity to every existing system, and the three levels
 disclose contracts above three different dollar thresholds, so even a "total
