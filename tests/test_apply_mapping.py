@@ -79,6 +79,8 @@ def test_ontario_vor_skips_two_line_preamble_and_maps_qualified_vendor(tmp_path)
     assert release["buyer"]["jurisdiction"] == "on"
     # ontario_vor publishes no transaction value; amount must be the documented zero, never inferred.
     assert release["awards"][0]["value"]["amount"] == 0.0
+    # VOR arrangements aren't GSIN/UNSPSC-classified; the scheme must say so.
+    assert release["awards"][0]["items"][0]["classification"]["scheme"] == "VOR"
 
 
 def test_ontario_vor_excludes_rows_missing_required_field(tmp_path):
@@ -136,6 +138,22 @@ def test_canadabuys_contract_history_negative_amount_falls_back_to_total_value(t
     assert releases[0]["awards"][0]["value"]["amount"] == 75000.0
     # falls back to the operating name when the legal name is blank
     assert releases[0]["awards"][0]["suppliers"][0]["name"] == "Vendor D Operating"
+
+
+def test_unknown_source_id_raises_instead_of_silently_misapplying(tmp_path):
+    # A new source must get its own explicit branch; falling through to
+    # another source's column logic would silently produce garbage records.
+    csv_path = tmp_path / "mystery.csv"
+    csv_path.write_text("colA,colB\nvalue1,value2\n")
+    config_path = tmp_path / "mapping.yaml"
+    config_path.write_text(
+        "source_id: not_a_real_source\n"
+        "jurisdiction: federal\n"
+        "mapping_version: test\n"
+        "mappings: []\n"
+    )
+    with pytest.raises(ValueError, match="no mapping implementation"):
+        ingest_csv(csv_path, config_path)
 
 
 def test_ingest_csv_respects_record_limit(tmp_path):

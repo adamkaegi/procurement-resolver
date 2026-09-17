@@ -22,6 +22,9 @@ from .resolve import UPPER_THRESHOLD, classify_pair, score_names
 # is a 0-100 score; aggregation confidence here is 0-1). Reusing it rather
 # than inventing a second number to tune -- see docs/DECISIONS.md.
 AGGREGATION_CONFIDENCE_FLOOR = UPPER_THRESHOLD / 100
+# Below this many matching records, compare_buyers returns the count but
+# declines the dollar total -- too few rows for an aggregate to mean
+# anything. The value is a judgment call, disclosed rather than hidden.
 MIN_BUYER_AGGREGATE_SAMPLE = 3
 
 
@@ -215,6 +218,10 @@ def _contracts_for_links(connection: duckdb.DuckDBPyConnection, links: list[Enti
                 ocid=record.get("ocid", ""),
                 award_id=award.get("id", ""),
                 date=record.get("date"),
+                # Schema validation upstream guarantees value.amount is a
+                # number >= 0 on every loaded record; the "or 0.0" guards
+                # dict-shape drift only. It is NOT a null-spend policy --
+                # all-zero groups are excluded with a caveat downstream.
                 amount=float(value.get("amount") or 0.0),
                 currency=value.get("currency") or "CAD",
                 buyer_name=(record.get("buyer") or {}).get("name"),
@@ -330,6 +337,9 @@ def compare_buyers(connection: duckdb.DuckDBPyConnection, jurisdictions: list[st
             if category and category.lower() not in (award.get("description") or "").lower():
                 continue
             buyer_name = (record.get("buyer") or {}).get("name") or "Unknown"
+            # Same guard as ContractSummary.amount: schema validation makes
+            # amount a number >= 0; "or 0.0" covers shape drift, and all-zero
+            # groups are declined below rather than reported as $0 spend.
             buyer_totals.setdefault(buyer_name, []).append(float((award.get("value") or {}).get("amount") or 0.0))
 
         ranked_buyers = sorted(buyer_totals.items(), key=lambda item: sum(item[1]), reverse=True)[:limit]

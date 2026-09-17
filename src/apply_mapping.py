@@ -27,6 +27,7 @@ def _release(row: dict[str, str], config: dict[str, Any], raw_ref: str) -> dict[
     source_id = config["source_id"]
     now = datetime.now(timezone.utc).isoformat()
     field_origins = {item["canonical"]: item.get("source_field", item.get("source_fields")) for item in config["mappings"]}
+    scheme: str | None = None  # branches may set it; defaults to the length heuristic below
     if source_id == "federal_contracts":
         ocid = _value(row, "procurement_id")
         release_id = _value(row, "reference_number")
@@ -67,9 +68,7 @@ def _release(row: dict[str, str], config: dict[str, Any], raw_ref: str) -> dict[
         description = _value(row, "tenderDescription-descriptionAppelOffres-eng") or _value(row, "title-titre-eng")
         classification = _value(row, "unspsc") or _value(row, "gsin-nibs")
         start, end = _value(row, "contractStartDate-contratDateDebut"), _value(row, "contractEndDate-dateFinContrat")
-    else:
-        # Catch-all: currently reached only by ontario_vor, the one
-        # remaining CSV-mapped source not named above.
+    elif source_id == "ontario_vor":
         ocid = _value(row, "Vendor of Record (VOR) Number")
         release_id = ocid
         date = _value(row, "Start Date")
@@ -78,7 +77,18 @@ def _release(row: dict[str, str], config: dict[str, Any], raw_ref: str) -> dict[
         amount = 0.0
         description = _value(row, "Vendor of Record (VOR) Name")
         classification = "VOR"
+        scheme = "VOR"
         start, end = _value(row, "Start Date"), _value(row, "End Date")
+    else:
+        raise ValueError(
+            f"no mapping implementation for source_id {source_id!r} -- add an "
+            "explicit branch here (see docs/DECISIONS.md, hardcoded-dispatch ADR)"
+        )
+    if scheme is None:
+        # Federal columns carry either short GSIN-style codes or long UNSPSC
+        # codes in the same field; length is the discriminator available in
+        # the raw data.
+        scheme = "GSIN" if len(classification) <= 6 else "UNSPSC"
     release = {
         "ocid": ocid,
         "id": release_id,
@@ -92,7 +102,7 @@ def _release(row: dict[str, str], config: dict[str, Any], raw_ref: str) -> dict[
             "value": {"amount": amount, "currency": _value(row, "contractCurrency-contratMonnaie") or "CAD"},
             "suppliers": [{"name": vendor or "Unknown", "id": None}],
             "description": description or None,
-            "items": [{"classification": {"scheme": "GSIN" if len(classification) <= 6 else "UNSPSC", "id": classification or "UNKNOWN"}}],
+            "items": [{"classification": {"scheme": scheme, "id": classification or "UNKNOWN"}}],
             "contractPeriod": {"startDate": parse_date(start), "endDate": parse_date(end)},
         }],
         "contracts": [{"period": {"startDate": parse_date(start), "endDate": parse_date(end)}, "awardID": release_id}],

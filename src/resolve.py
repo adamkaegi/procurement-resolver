@@ -19,6 +19,14 @@ LEGAL_SUFFIXES = {
     "inc", "incorporated", "corp", "corporation", "co", "company", "ltd",
     "limited", "llc", "lp", "llp", "of canada",
 }
+# Auto-accept / auto-reject bars for token_set_ratio scores (0-100); the band
+# between them abstains, or goes to an adjudicator when one is configured.
+# 92 was checked against the nearest known false-friend pair: "Dell Canada"
+# vs "Bell Canada" scores 90.9 and must NOT auto-accept. The score-100
+# token-superset case ("Bell" vs "Bell Canada") clears any bar by
+# construction -- that is a scoring-function limit (docs/FAILURES.md #17),
+# not a threshold choice. 65 is the floor below which token overlap is too
+# thin to mean anything ("Data Services" vs "Data Systems" scores 64).
 UPPER_THRESHOLD = 92.0
 LOWER_THRESHOLD = 65.0
 
@@ -50,7 +58,13 @@ def score_names(left: str, right: str) -> float:
 def classify_pair(left: str, right: str, adjudicator: Any = None) -> dict[str, Any]:
     score = score_names(left, right)
     if score >= UPPER_THRESHOLD:
-        decision, method = True, "exact" if score == 100 else "normalized"
+        # "exact" only for true normalized equality. token_set_ratio can also
+        # return 100 for a strict token superset ("Bell" vs "Bell Canada");
+        # that still auto-accepts on score (FAILURES.md #17) but must be
+        # labelled "normalized", not "exact" -- the label should never claim
+        # more than the match actually is.
+        exact = normalize_vendor(left) == normalize_vendor(right)
+        decision, method = True, "exact" if exact else "normalized"
     elif score <= LOWER_THRESHOLD:
         decision, method = False, "fuzzy"
     elif adjudicator is not None:
@@ -68,18 +82,6 @@ def classify_pair(left: str, right: str, adjudicator: Any = None) -> dict[str, A
         "method": method,
         "evidence": {"normalized_left": normalize_vendor(left), "normalized_right": normalize_vendor(right), "block_left": block_key(left), "block_right": block_key(right)},
     }
-
-
-def rank_candidates(name: str, candidates: list[dict[str, str]], limit: int = 10) -> list[dict[str, Any]]:
-    """Return scored candidates from the same normalized blocking bucket."""
-    bucket = block_key(name)
-    ranked = []
-    for candidate in candidates:
-        if block_key(candidate["source_vendor_name"]) != bucket:
-            continue
-        result = classify_pair(name, candidate["source_vendor_name"])
-        ranked.append({**candidate, **result})
-    return sorted(ranked, key=lambda item: item["score"], reverse=True)[:limit]
 
 
 def evaluate_pairs(pair_path: Path, output_path: Path) -> dict[str, Any]:
@@ -159,8 +161,9 @@ def _reset_resolution_tables(connection: duckdb.DuckDBPyConnection) -> None:
 def _write_entities_and_links(connection: duckdb.DuckDBPyConnection, vendors: dict[str, list[tuple[str, str]]]) -> None:
     """One entity per normalized-name group; one entity_link row per
     (source, verbatim name) occurrence, all at confidence 1.0/"normalized" --
-    this is exact-normalized clustering only. Fuzzy/adjudicated candidates
-    are scored live by rank_candidates, not persisted here."""
+    this is exact-normalized clustering only. Fuzzy/uncertain-band candidates
+    are scored live at query time by agent_tools.resolve_vendor, not
+    persisted here."""
     for normalized, links in vendors.items():
         entity_id = _entity_id(normalized)
         canonical_name = links[0][1]
@@ -180,12 +183,21 @@ def _write_coverage(connection: duckdb.DuckDBPyConnection, project_root: Path) -
             # read as a source that failed to load 0 records.
             continue
         count = connection.execute("SELECT COUNT(*) FROM releases WHERE source_id = ?", [config["source_id"]]).fetchone()[0]
-        date_start, date_end = connection.execute(
+        # Document-extracted records (both Ottawa sources) store the report's
+        # period END as their `date` because no per-row award date is
+        # published -- so the range start must also consider the extracted
+        # report_period_start, or a Jan-Jun report reads as starting in June
+        # and the coverage table implies a gap that doesn't exist. Sources
+        # without that provenance field are unaffected (the MIN is NULL).
+        min_date, date_end, min_period_start = connection.execute(
             "SELECT MIN(TRY_CAST(json_extract_string(record, '$.date') AS TIMESTAMP)), "
-            "MAX(TRY_CAST(json_extract_string(record, '$.date') AS TIMESTAMP)) "
+            "MAX(TRY_CAST(json_extract_string(record, '$.date') AS TIMESTAMP)), "
+            "MIN(TRY_CAST(json_extract_string(record, '$._provenance.report_period_start') AS TIMESTAMP)) "
             "FROM releases WHERE source_id = ?",
             [config["source_id"]],
         ).fetchone()
+        start_candidates = [d for d in (min_date, min_period_start) if d is not None]
+        date_start = min(start_candidates) if start_candidates else None
         known_gaps = config.get("known_gaps") or [config.get("notes", "")]
         connection.execute(
             "INSERT INTO coverage VALUES (?, ?, ?, ?, ?, ?, ?)",

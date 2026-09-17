@@ -104,6 +104,10 @@ def extract_records(path: Path, source_id: str = "ottawa_contracts_awarded") -> 
         description_end = approval_match.start() if approval_match else amount_match.start()
         description = flattened[description_start:description_end].strip(" -")
 
+        # 0.95 when every contextual field the parser hunts for was found;
+        # 0.85 when any was missing (a sign the row layout deviated from the
+        # expected table shape). Parser self-assessment, not measured
+        # accuracy -- see this source's coverage known_gaps.
         confidence = 0.95 if period_end and department != "Unknown Ottawa department" and approval_type and rationale else 0.85
         release_id = f"{source_id}:{contract_id}:{item_number}"
         records.append({

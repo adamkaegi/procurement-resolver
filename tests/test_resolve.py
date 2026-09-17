@@ -11,7 +11,6 @@ from src.resolve import (
     classify_pair,
     evaluate_pairs,
     normalize_vendor,
-    rank_candidates,
     score_names,
 )
 
@@ -90,13 +89,28 @@ def test_classify_pair_evidence_carries_normalized_and_block_forms():
     assert result["evidence"]["normalized_right"] == "ibm canada"
 
 
-def test_rank_candidates_only_returns_same_block():
-    candidates = [
-        {"source_vendor_name": "Bell Canada", "source_id": "a"},
-        {"source_vendor_name": "IBM Canada Ltd.", "source_id": "b"},
-    ]
-    ranked = rank_candidates("Bell Canada Inc.", candidates)
-    assert [c["source_vendor_name"] for c in ranked] == ["Bell Canada"]
+def test_classify_pair_labels_true_normalized_equality_as_exact():
+    result = classify_pair("Bell Canada", "BELL CANADA")
+    assert result["decision"] is True
+    assert result["method"] == "exact"
+
+
+def test_classify_pair_does_not_label_token_superset_as_exact():
+    # token_set_ratio scores a strict token superset at 100 (FAILURES.md #17),
+    # so this still auto-accepts on score -- but the label must say
+    # "normalized", never "exact", for a pair that isn't actually equal.
+    result = classify_pair("Bell", "Bell Canada")
+    assert result["score"] == 100.0
+    assert result["decision"] is True
+    assert result["method"] == "normalized"
+
+
+def test_dell_canada_vs_bell_canada_lands_in_adjudication_band():
+    # The nearest known false-friend pair; UPPER_THRESHOLD was checked
+    # against it. If this ever auto-accepts, the threshold moved wrongly.
+    result = classify_pair("Dell Canada Inc.", "Bell Canada")
+    assert LOWER_THRESHOLD < result["score"] < UPPER_THRESHOLD
+    assert result["decision"] is None
 
 
 def test_evaluate_pairs_reports_counts_by_jurisdiction_pair_and_marks_provisional(tmp_path):
