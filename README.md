@@ -1,5 +1,7 @@
 # Cross-Jurisdictional Procurement Resolver
 
+[![CI](https://github.com/adamkaegi/procurement-resolver/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/adamkaegi/procurement-resolver/actions/workflows/ci.yml)
+
 Canadian public procurement is published at three levels of government — federal,
 Ontario, and the City of Ottawa — that share no schema, no vendor identifier, and
 no common publication format. A firm holding contracts at all three levels is
@@ -35,6 +37,51 @@ framing and design rationale: [`docs/SPEC.md`](docs/SPEC.md).
 - **The MCP agent**, from your own machine, talking to a real MCP client
   (e.g. Claude Desktop) — see [Connecting an MCP client](#connecting-an-mcp-client) below.
 
+## What an answer looks like
+
+Two real `cross_level_exposure` responses from the live warehouse (trimmed —
+per-source `known_gaps` arrays omitted). First, a vendor that genuinely
+resolves across levels of government:
+
+```jsonc
+{
+  "canonical_name": "BELL CANADA",
+  "declined": false,
+  "overall_confidence": 1.0,
+  "exposures": [
+    { "jurisdiction": "federal", "source_id": "federal_contracts",
+      "contract_count": 10, "total_amount": 4579921.67, "value_threshold": 10000.0 },
+    { "jurisdiction": "federal", "source_id": "canadabuys_award_notices",
+      "contract_count": 4,  "total_amount": null,
+      "amount_caveat": "All 4 included contract(s) ... show $0 ... Excluded from the dollar total rather than silently included as $0." },
+    { "jurisdiction": "ottawa", "source_id": "ottawa_contracts_awarded",
+      "contract_count": 14, "total_amount": 1823618.92, "value_threshold": 25000.0 },
+    { "jurisdiction": "ottawa", "source_id": "ottawa_historical_contracts",
+      "contract_count": 5,  "total_amount": 7982143.21, "value_threshold": 25000.0 }
+  ]
+}
+```
+
+And the same tool on a vendor the data *can't* support a cross-level claim
+for — it declines with a reason instead of fabricating a total:
+
+```jsonc
+{
+  "canonical_name": "KLEENOIL FILTRATION CANADA LTD",
+  "declined": true,
+  "decline_reason": "This entity currently resolves to records in only 1 jurisdiction(s). Cross-level exposure requires more than one to be meaningful; returning per-source detail instead of a cross-level total.",
+  "exposures": [
+    { "jurisdiction": "ottawa", "source_id": "ottawa_contracts_awarded",
+      "contract_count": 2, "total_amount": 333035.45 },
+    { "jurisdiction": "ottawa", "source_id": "ottawa_historical_contracts",
+      "contract_count": 1, "total_amount": 168689.0 }
+  ]
+}
+```
+
+The refusal is the point: confidence and coverage caveats ride along on
+every answer, and where they can't support a claim, the tool says so.
+
 ## Architecture at a glance
 
 ```
@@ -42,7 +89,7 @@ data/raw/<source>/<timestamp>/   archived raw payloads, immutable, never re-fetc
         │
         ▼
 apply_mapping.py / extract_documents.py / ingest_ottawa_open_data.py
-        │            (deterministic; CSV → mapping.yaml, PDF/XLSX → code-driven parse)
+        │            (deterministic, per-source code; mapping.yaml documents intent)
         ▼
 validate.py            (every record checked against schema/ocds_subset.json)
         ▼
@@ -90,10 +137,15 @@ the `entity` / `entity_link` / `coverage` tables. It makes no network calls
 and calls no model.
 
 `data/raw/` itself is not checked into this repository (see
-[`CLAUDE.md`](CLAUDE.md) rule 3 — source payloads are archived locally and
-never re-fetched or modified in place). Rebuilding from a clean clone
-requires re-fetching each source per `sources/<source_id>/source.yaml`
-first, via `src/fetch.py`.
+[`CLAUDE.md`](CLAUDE.md) rule 2 — source payloads are archived locally,
+never re-fetched or modified in place, and not redistributed), so the full
+rebuild only runs on a machine that has the archived payloads. **From a
+cold clone, what works immediately:** `uv sync`, `uv run pytest` (the two
+tests that need archived data skip themselves — same as CI), and the
+published Register site above. Each source's official download URL and
+licence are recorded in `sources/<source_id>/source.yaml` if you want to
+fetch your own copies; the archival helper they were fetched through is
+`src/fetch.py`.
 
 ### Connecting an MCP client
 
