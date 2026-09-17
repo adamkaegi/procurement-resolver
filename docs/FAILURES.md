@@ -28,21 +28,22 @@ OF AUTHORITY FOR THE PERIOD OF JANUARY 1, 2024 TO JUNE 30, 2024 Page 1 of
 28..."`. Root cause: vendor was defined as all text after the amount to the
 end of the flattened block, with no page-boundary guard.
 
-It survived the project's entire life because exact-normalized clustering
-never compared one entity against another, and surfaced within minutes of
-fuzzy blocking doing so — as pairs of unrelated vendors scoring above the
-auto-accept threshold on their shared boilerplate. **A defect in one layer
-that only a different layer could reveal.** Fixed by cutting known
+Exact-normalized clustering cannot surface this class of defect, because
+it never compares one entity against another. Fuzzy blocking does, and it
+showed up immediately there — as pairs of unrelated vendors scoring above
+the auto-accept threshold on their shared boilerplate. Worth noting as a
+general property: a corruption that only manifests in cross-entity
+comparison is invisible to exact matching. Fixed by cutting known
 furniture off the vendor field: 97 → 0.
 
 ### A2. `token_set_ratio` matched any name that was a token subset (fixed)
 
 The scorer compared the shared-token intersection rather than the full
 names, so a name whose tokens are a strict subset of a longer one scored
-100 regardless of meaning. Disclosed for months as a toy case (`"Bell"` vs
-`"Bell Canada"`); persisting the fuzzy band showed it was systemic:
-**3,958 entity pairs auto-accepted**, including a 30-character firm name
-matched at 100.0 against a 620-character vendor roster (an A1 casualty).
+100 regardless of meaning. The toy case is `"Bell"` vs `"Bell Canada"`;
+at warehouse scale it was systemic — **3,958 entity pairs auto-accepted**,
+including a 30-character firm name matched at 100.0 against a
+620-character vendor roster (an A1 casualty).
 
 Switched to `token_sort_ratio`, which compares full sorted strings so
 extra tokens cost score: **auto-accepts dropped to 987**, all sampled ones
@@ -89,12 +90,11 @@ partial-zero groups the way all-zero groups already are.
 
 `entity_link` holds one row per (entity, source, verbatim name)
 *occurrence*, not per distinct name — 137 rows for `"Simex Defence Inc."`
-in one source alone. `entity_profile` handles this (it selects distinct
-links before looking up contracts, and returns a correct 333 contracts /
-328 distinct ocids for that entity), but **joining `entity_link` to
-`releases` directly without de-duplicating fans out catastrophically** —
-a naive diagnostic query written during this work reported 26,376
-contracts for a vendor in a 5,000-row source before the error was caught.
+in one source alone. `entity_profile` handles this — it selects distinct
+links before looking up contracts, returning 333 contracts / 328 distinct
+ocids for that entity. But **joining `entity_link` to `releases` directly
+without de-duplicating fans out badly**: an un-deduplicated join can
+report tens of thousands of contracts for a vendor in a 5,000-row source.
 Anyone querying the table directly should expect this.
 
 ### A6. Normalization collapses real spelling variance
@@ -128,22 +128,7 @@ legitimately contain commas (`"ARCADIS PROF SERVICES (CANADA) INC"`). The
 release stays in the warehouse with its verbatim name; it simply asserts
 nothing about any single vendor.
 
-### A9. Retracted: the "image-only Ottawa PDF"
-
-For months this catalogue asserted that one Transit report was image-only,
-produced no text, and needed OCR or a vision model. **It was false.** All
-eight archived PDFs were checked: none contains a single embedded image,
-every one yields substantial text (the accused file: 32,823 characters, 98
-records, 50 surviving dedup), and every one contributes to the warehouse.
-The entry most likely described a parser failure on that report's layout,
-later fixed by unrelated work, recorded as a property of the document.
-
-Kept visible rather than deleted, because the retraction is the finding:
-*"the parser produced nothing"* and *"the document contains nothing"* are
-different claims, and this catalogue asserted the harder one without
-checking it.
-
-### A10. Source semantics that break naive aggregation
+### A9. Source semantics that break naive aggregation
 
 - `ontario_vor` publishes **no per-transaction value at all** — every
   amount is a documented zero. It is a registry of standing arrangements,

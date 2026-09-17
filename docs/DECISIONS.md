@@ -3,8 +3,19 @@
 Every deterministic-vs-LLM choice and every architectural trade-off in this
 project, in the format context / decision / alternative rejected /
 consequence, grouped by area rather than by when each was made. This is the
-source material for the project writeup, and the place to look for *why*
-the code is shaped the way it is.
+place to look for *why* the code is shaped the way it is.
+
+- [Schema and validation](#schema-and-validation)
+- [Mapping and ingestion](#mapping-and-ingestion) — why `mapping.yaml` is
+  executed, and what "LLM-generated adapter" means here
+- [Ottawa: licence verification and extraction](#ottawa-licence-verification-and-extraction)
+  — how a licence was confirmed, and how document extraction handles dirty
+  vendor fields
+- [Vendor resolution](#vendor-resolution) — banding, the scoring metric,
+  what gets persisted, and how queries stay fast
+- [Sources](#sources) — what was added, what was rejected, and the one
+  added dependency
+- [MCP agent](#mcp-agent) — typed tools, rule-based refusal, and hosting
 
 ## Schema and validation
 
@@ -32,15 +43,14 @@ the code is shaped the way it is.
 - Consequence: mapping behavior for these sources is fully reviewable, and
   gives the mapping generator something real to be measured against.
 
-### `mapping.yaml` is executed, not decorative
+### `mapping.yaml` is executable config, not documentation
 
-- Context: for most of this project's life, `apply_mapping.py` branched on
-  `source_id` with hardcoded column reads, and `mapping.yaml` was reviewable
-  documentation of intent rather than the thing that ran — a disclosed
-  trade-off (the risk of rewriting what produced every warehouse row was
-  judged worse than the config-vs-code gap). That gap was this repo's
-  biggest plan-vs-code divergence.
-- Decision: replace the per-source branches with a generic interpreter.
+- Context: per-source field mapping can live as hardcoded Python branches
+  with the YAML as reviewable documentation of intent, or the YAML can be
+  the thing that actually runs. The first is easier to write; the second is
+  the only version where "add a source" is a config change and where the
+  committed config can be trusted to describe real behaviour.
+- Decision: a generic interpreter, no per-source branches.
   Each `mapping.yaml` entry names its canonical field, its source column(s)
   — fallback order declared as `source_fields` lists in the config, not
   encoded in transform names — and a transform that is now a real function
@@ -67,15 +77,14 @@ the code is shaped the way it is.
 
 ### Generated, then reviewed
 
-- Context: `sources/canadabuys_contract_history/mapping.yaml` was committed
-  as unedited Ollama output (`qwen2.5:7b-instruct`, generation logged in
-  `evals/results/llm_calls.jsonl`), under a "never hand-corrected" framing.
-  Once mapping.yaml became executable, that framing collided with reality:
-  executed literally, the model's mapping fails ingestion — it left
-  schema-required `ocid` unmapped, mapped the amount to a single column
-  with no negative-amendment fallback (amendment rows would fail the
-  schema's `minimum: 0`), left a populated description column unmapped, and
-  chose a sparsely-populated identifier column.
+- Context: a locally-run model (`qwen2.5:7b-instruct`, generation logged
+  in `evals/results/llm_calls.jsonl`) produced the field mapping for
+  `canadabuys_contract_history`. Executed literally, that output does not
+  ingest: it left schema-required `ocid` unmapped, mapped the amount to a
+  single column with no negative-amendment fallback (amendment rows fail
+  the schema's `minimum: 0`), left a populated description column
+  unmapped, and chose a sparsely-populated identifier column. So the
+  question is what "LLM-generated adapter" should mean in practice.
 - Decision: adopt the pipeline the spec always drew — "generate mapping
   (once/source) → human review" — with the review allowed to correct.
   The unedited model output is archived beside the executable mapping
@@ -90,8 +99,8 @@ the code is shaped the way it is.
   degrades real records to preserve a claim about process); keeping that
   one source hardcoded as an exception (keeps the gap the interpreter
   exists to close).
-- Consequence: the "never hand-corrected" claim is retired — what's
-  demonstrated instead is the honest loop: real model generation, a gate
+- Consequence: what this demonstrates is the full loop rather than a
+  claim of untouched model output: real model generation, a gate
   that now catches its real failure modes (the archived unedited mapping
   fails the strengthened gate with 8 errors; the reviewed one passes), and
   a reviewable diff between what the model proposed and what a human
@@ -152,37 +161,10 @@ the code is shaped the way it is.
 - Consequence: corrupted names 97 → 0, and the resolution layer stopped
   matching unrelated vendors on their shared boilerplate. Entities fell
   9,030 → 8,916 as the furniture-inflated duplicates collapsed into their
-  real names. Catalogued as `FAILURES.md` A1 and A8. Worth noting how
-  this was found: the bug survived the project's entire life because
-  exact-normalized clustering never compared one entity to another, and
-  surfaced within minutes of blocking doing so — a defect in one layer
-  that only a different layer could reveal.
-
-### Retracted: the "image-only Ottawa PDF"
-
-- Context: `FAILURES.md` A9 asserted that one Transit report was
-  image-only, produced no text through the deterministic parser, and would
-  need OCR or a vision model. It was carried as a known gap in that
-  source's `known_gaps`, in `AGENT_DEMO.md`, and was scoped as real work.
-- Decision: verify before building. All eight archived PDFs were checked:
-  none contains a single embedded image, every one yields substantial
-  extractable text (the accused file yields 32,823 characters), and every
-  one contributes records to the deduped warehouse (that file: 98
-  extracted, 50 surviving dedup). No OCR or vision-model path was built,
-  because there is nothing for it to do.
-- Alternative rejected: implementing the vision-model extraction anyway —
-  it had been planned and a model was already pulled, but shipping a
-  slow, non-deterministic extraction path for a document that parses fine
-  would be solving a problem that doesn't exist, and the ADR justifying it
-  would have been false.
-- Consequence: `FAILURES.md` A9 is marked retracted
-  rather than deleted, and the derived `known_gaps` claim is corrected.
-  The original entry most likely described a parser failure on that
-  report's layout, later fixed by unrelated parser work, that was recorded
-  as a property of the document. The lesson is the reason the entry is
-  kept visible: "the parser produced nothing" and "the document contains
-  nothing" are different diagnoses, and the catalogue asserted the harder
-  one without checking.
+  real names. Catalogued as `FAILURES.md` A1 and A8, with the general
+  property worth remembering: a corruption that only manifests when two
+  entities are compared is invisible to exact matching, and needs a
+  cross-entity pass to surface at all.
 
 ### Ottawa PDF extraction: deterministic regex parsing, not a model call
 
@@ -193,7 +175,9 @@ the code is shaped the way it is.
   retain approval type and non-competitive rationale as provenance
   extensions.
 - Alternative rejected: sending page text to an LLM for extraction, or
-  treating the report text as a clean CSV.
+  treating the report text as a clean CSV. No OCR or vision-model path
+  exists or is needed: all eight archived reports are text-based (verified
+  — none contains an embedded image, and every one yields records).
 - Consequence: extraction is reproducible and free at the model layer.
   Parser confidence (0.85–0.95, lower when department/approval-type/
   rationale aren't all found) and spot checks against source PDFs are the
@@ -225,6 +209,26 @@ the code is shaped the way it is.
   side specifically.
 
 ## Vendor resolution
+
+### Deterministic blocking and scoring; abstain, don't force, in the uncertain band
+
+- Context: spec Part 8 wants deterministic blocking + `rapidfuzz` scoring
+  for the bulk of pairs, with an LLM adjudicator reserved for the uncertain
+  confidence band only.
+- Decision: normalize (strip legal suffixes, punctuation, casing), block on
+  normalized tokens, score with `rapidfuzz` (see the next ADR for which
+  metric and why). Pairs
+  scoring above the upper threshold auto-match, below the lower threshold
+  auto-reject; in between, abstain (`decision: None`) rather than force a
+  match when no adjudicator is configured.
+- Alternative rejected: forcing every uncertain pair into a match or
+  non-match without an adjudicator backing the decision.
+- Consequence: `entity_link` never fabricates certainty for a pair the
+  scoring function is genuinely unsure about, and the adjudication band's
+  width and hit rate are directly measurable
+  (`evals/results/PROVISIONAL_resolution_metrics.log`). The banding
+  structure is independent of the scoring metric: the ADRs below change
+  the metric and what gets persisted without changing the bands.
 
 ### `token_sort_ratio`, not `token_set_ratio`
 
@@ -302,28 +306,6 @@ the code is shaped the way it is.
   all-pairs blocked scan. The cap is the one real limitation: an entity
   whose every token is very common generates no fuzzy candidates, so
   exact-normalized clustering is all that covers it.
-
-### Deterministic blocking and scoring; abstain, don't force, in the uncertain band
-
-- Context: spec Part 8 wants deterministic blocking + `rapidfuzz` scoring
-  for the bulk of pairs, with an LLM adjudicator reserved for the uncertain
-  confidence band only.
-- Decision: normalize (strip legal suffixes, punctuation, casing), block on
-  normalized tokens, score with `rapidfuzz` (originally `token_set_ratio`;
-  see the scorer ADR above for why it is now `token_sort_ratio`). Pairs
-  scoring above the upper threshold auto-match, below the lower threshold
-  auto-reject; in between, abstain (`decision: None`) rather than force a
-  match when no adjudicator is configured.
-- Alternative rejected: forcing every uncertain pair into a match or
-  non-match without an adjudicator backing the decision.
-- Consequence: `entity_link` never fabricates certainty for a pair the
-  scoring function is genuinely unsure about, and the adjudication band's
-  width and hit rate are directly measurable
-  (`evals/results/PROVISIONAL_resolution_metrics.log`). The banding
-  structure described here outlived its original scorer: the
-  token-superset false positive it used to disclose
-  (`docs/FAILURES.md` A2) was fixed by changing the metric, not the
-  bands.
 
 ## Sources
 

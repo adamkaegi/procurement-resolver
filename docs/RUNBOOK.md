@@ -46,8 +46,7 @@ The checks that needed a person, not the agent that wrote the code:
   schema.
 - **Extraction (Phase 4)** — spot-check ten extracted records against the
   source PDFs. Extraction is where silent corruption is most likely and
-  least visible. (This is where the page-furniture corruption in
-  `docs/FAILURES.md` A1 should have been caught and wasn't.)
+  least visible.
 - **Resolution (Phase 5)** — read the hard cases in `docs/FAILURES.md`
   against what the resolver actually did with them.
 
@@ -58,11 +57,7 @@ Read `docs/PROGRESS.md` and look specifically for:
 - acceptance tests that were quietly weakened to pass
 - sources substituted without a flag
 - any number that appeared somewhere without a real run behind it
-- claims about the data that were asserted rather than checked
-
-That last one earned its place: `docs/FAILURES.md` A9 asserted for months
-that an Ottawa PDF was image-only and unextractable. It was never verified,
-and it was false.
+- claims about the data asserted rather than measured
 
 The failure mode of autonomous runs is not sabotage. It's something
 reasonable and wrong, reported confidently.
