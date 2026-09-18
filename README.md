@@ -82,6 +82,58 @@ for — it declines with a reason instead of fabricating a total:
 The refusal is the point: confidence and coverage caveats ride along on
 every answer, and where they can't support a claim, the tool says so.
 
+### The same tools, driven by an MCP client
+
+Three unedited sessions against the local server from Claude Desktop — no
+extra code, no hosting, no auth (setup in [`docs/AGENT_DEMO.md`](docs/AGENT_DEMO.md)).
+Click any image for full size.
+
+<p align="center">
+  <a href="docs/images/mcp-entity-profile-deloitte.png">
+    <img src="docs/images/mcp-entity-profile-deloitte.png" width="720"
+         alt="An MCP client showing an entity_profile result for Deloitte: five source-verbatim vendor spellings folded into one entity across five sources, per-jurisdiction exposure, and a section listing what was deliberately excluded from the totals and why.">
+  </a>
+</p>
+
+**`entity_profile` — the evidence, including what isn't counted.** Five
+source-verbatim spellings (`DELOITTE INC`, `DELOITTE LLP`, `Deloitte`,
+`Deloitte Inc.`, `Deloitte LLP`) resolve to one entity spanning all three
+jurisdictions. The second half of the answer is the part that matters: six
+Ontario VOR records held out of any dollar total because that source
+publishes no per-transaction value; one candidate link persisted at 0.696
+and excluded from every figure until someone adjudicates it; and two
+weaker near-matches (0.552, 0.348) left standing as separate entities.
+Nothing is silently merged, and nothing uncertain is silently counted.
+
+<p align="center">
+  <a href="docs/images/mcp-coverage-caveats-deloitte.png">
+    <img src="docs/images/mcp-coverage-caveats-deloitte.png" width="720"
+         alt="An MCP client answering which level of government spends more with Deloitte: federal $72.7M versus Ottawa $21.0M, followed by five caveats explaining why the two figures are not directly comparable.">
+  </a>
+</p>
+
+**Coverage caveats, unprompted.** Asked a straightforward comparison
+question, the agent answers it and then explains why the answer shouldn't
+be trusted as stated: different disclosure thresholds ($10K federal,
+$25K Ottawa), different coverage windows, and the fact that the largest
+federal source contributes *no* high-confidence links to this entity at
+all — so the federal figure rests entirely on the two CanadaBuys sources.
+
+<p align="center">
+  <a href="docs/images/mcp-declined-kleenoil.png">
+    <img src="docs/images/mcp-declined-kleenoil.png" width="720"
+         alt="An MCP client relaying a declined cross_level_exposure result for Kleenoil Filtration Canada Ltd, which resolves in only one jurisdiction, with the per-source Ottawa detail returned instead of a fabricated cross-level total.">
+  </a>
+</p>
+
+**The decline, end to end.** The same `cross_level_exposure` refusal shown
+as JSON above, arriving at a user through a real client: no cross-level
+total, a stated reason, and the Ottawa detail returned anyway.
+
+The `ent_…` identifiers visible in these sessions are content-hashed from
+the warehouse build they were captured against. A rebuild from freshly
+fetched sources can produce different ids for the same firms.
+
 ## Architecture at a glance
 
 ```

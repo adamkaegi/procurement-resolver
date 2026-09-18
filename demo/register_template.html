@@ -302,6 +302,27 @@
   .pager button:disabled { opacity: 0.35; cursor: default; }
   .pager .pageinfo { font-size: 12.5px; color: var(--text-dim); font-family: ui-monospace, monospace; }
 
+  /* ---------- agent screenshots ---------- */
+  .shots {
+    display: grid; gap: 34px; margin-top: 4px;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  }
+  .shots figure { margin: 0; }
+  .shots img {
+    display: block; width: 100%; height: auto; border-radius: 8px;
+    border: 1px solid var(--line-strong); box-shadow: var(--shadow);
+    background: #fff;
+  }
+  .shots figcaption {
+    margin-top: 12px; font-size: 13px; line-height: 1.65; color: var(--text-dim);
+  }
+  .shots figcaption b { color: var(--text); font-weight: 600; }
+  .shots figcaption code {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11.5px; color: var(--brass-strong); background: var(--brass-wash);
+    padding: 1px 4px; border-radius: 3px;
+  }
+
   /* ---------- footer ---------- */
   footer {
     padding: 32px 0 56px;
@@ -396,6 +417,51 @@
         <button id="pagerPrev">&larr; Prev</button>
         <span class="pageinfo" id="pagerInfo"></span>
         <button id="pagerNext">Next &rarr;</button>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <h2 class="display">The same data, asked as questions</h2>
+          <div class="desc">
+            This page is a browser over the warehouse. The other half of the project is an MCP server —
+            five typed tools, no free-text SQL — that answers cross-jurisdictional questions with the
+            resolution confidence and coverage gaps attached. Three unedited sessions from a real MCP client:
+          </div>
+        </div>
+      </div>
+      <div class="shots">
+        <figure>
+          <img src="data:image/jpeg;base64,__SHOT_PROFILE_B64__"
+               alt="An MCP client showing an entity_profile result for Deloitte: five source-verbatim vendor spellings folded into one entity across five sources, per-jurisdiction exposure, and a section listing what was deliberately excluded from the totals and why.">
+          <figcaption>
+            <b>The evidence, including what isn't counted.</b> Five source-verbatim spellings resolve to one
+            entity across three jurisdictions — then six Ontario VOR records are held out of any dollar total,
+            one candidate link is persisted at <code>0.696</code> and excluded until adjudicated, and two
+            weaker near-matches (<code>0.552</code>, <code>0.348</code>) are left as separate entities.
+            Nothing silently merged, nothing uncertain silently counted.
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="data:image/jpeg;base64,__SHOT_CAVEATS_B64__"
+               alt="An MCP client answering which level of government spends more with Deloitte: federal $72.7M versus Ottawa $21.0M, followed by five caveats explaining why the two figures are not directly comparable.">
+          <figcaption>
+            <b>Coverage caveats, unprompted.</b> A straightforward comparison gets answered — and then
+            qualified: different disclosure thresholds, different coverage windows, and the largest federal
+            source contributing no high-confidence links to this entity at all.
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="data:image/jpeg;base64,__SHOT_DECLINED_B64__"
+               alt="An MCP client relaying a declined cross_level_exposure result for Kleenoil Filtration Canada Ltd, which resolves in only one jurisdiction, with the per-source Ottawa detail returned instead of a fabricated cross-level total.">
+          <figcaption>
+            <b>The decline.</b> A vendor resolving in one jurisdiction gets no cross-level total — a stated
+            reason instead, with the per-source detail returned anyway rather than a fabricated number.
+          </figcaption>
+        </figure>
       </div>
     </div>
   </section>

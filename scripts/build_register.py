@@ -8,8 +8,9 @@ command now produces one ready-to-serve file:
 
     uv run python scripts/build_register.py
 
-Reads data/warehouse.duckdb (read-only) and demo/assets/Fraunces-Variable.ttf
-(committed, no network call at build time). Writes demo/register.html --
+Reads data/warehouse.duckdb (read-only), demo/assets/Fraunces-Variable.ttf and
+the agent screenshots under demo/assets/screenshots/ (all committed, no network
+call at build time). Writes demo/register.html --
 gitignored, since it's ~2MB of embedded data derived from the warehouse; see
 docs/DECISIONS.md for why the browser is a rebuilt-on-purpose static
 snapshot, not a live view.
@@ -31,12 +32,24 @@ TEMPLATE = ROOT / "demo/register_template.html"
 FONT = ROOT / "demo/assets/Fraunces-Variable.ttf"
 OUTPUT = ROOT / "demo/register.html"
 
+# Agent-session screenshots embedded at the foot of the page. Placeholder ->
+# committed JPEG. The full-resolution PNGs these are downscaled from live in
+# docs/images/ and are what README.md links to.
+SHOTS = {
+    "__SHOT_PROFILE_B64__": ROOT / "demo/assets/screenshots/mcp-entity-profile-deloitte.jpg",
+    "__SHOT_CAVEATS_B64__": ROOT / "demo/assets/screenshots/mcp-coverage-caveats-deloitte.jpg",
+    "__SHOT_DECLINED_B64__": ROOT / "demo/assets/screenshots/mcp-declined-kleenoil.jpg",
+}
+
 
 def build() -> Path:
     if not DATABASE.exists():
         raise FileNotFoundError(f"{DATABASE} does not exist. Run scripts/rebuild.py first.")
     if not FONT.exists():
         raise FileNotFoundError(f"{FONT} is missing -- it's a committed asset, not fetched at build time.")
+    for shot in SHOTS.values():
+        if not shot.exists():
+            raise FileNotFoundError(f"{shot} is missing -- it's a committed asset, not fetched at build time.")
 
     template = TEMPLATE.read_text()
     font_b64 = base64.b64encode(FONT.read_bytes()).decode()
@@ -53,6 +66,8 @@ def build() -> Path:
         .replace("__ENTITIES_B64__", entities_b64)
         .replace("__COVERAGE_JSON__", coverage_json)
     )
+    for placeholder, shot in SHOTS.items():
+        html = html.replace(placeholder, base64.b64encode(shot.read_bytes()).decode())
     OUTPUT.write_text(html)
     return OUTPUT
 
